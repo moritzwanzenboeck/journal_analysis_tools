@@ -42,10 +42,6 @@ name; the original random sample and analysis are preserved.
 ├── README.md
 ├── project.json
 ├── clean_and_count_text.ipynb
-├── analysis/analysis.csv
-├── papers/
-│   ├── 01_<paper-title>/metadata.json
-│   └── 02_<paper-title>/metadata.json
 └── output/
     ├── <journal>_<start>_<end>.csv
     ├── <journal>_<start>_<end>.bib
@@ -56,10 +52,9 @@ name; the original random sample and analysis are preserved.
     └── <journal>_<start>_<end>_random<N>_selection.json
 ```
 
-CSV files use UTF-8 with a BOM for Excel. The analysis table has one row per
-sampled paper, with DOI, title, paper-folder path and empty count/note columns.
-It starts empty of analysis results. PDFs are not downloaded; obtain them
-separately and place them in their numbered folders.
+CSV files use UTF-8 with a BOM for Excel. Full and sampled paper metadata are
+kept in `output/`. Choose your own folders and files for PDFs and analysis
+results. PDFs are not downloaded.
 
 `project.json` records the journal, ISSNs, dates, publication basis, chosen sample
 size, actual random seed and export paths. CSV and BibTeX exports have identical

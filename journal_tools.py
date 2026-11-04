@@ -506,20 +506,6 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
         write_selection(selected, output, sample_stem, dict(selection_report, source_csv=f"output/{stem}.csv"))
         (staging / "project.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         (staging / "clean_and_count_text.ipynb").write_text(json.dumps(template, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        analysis = staging / "analysis"
-        analysis.mkdir()
-        analysis_fields = ["sample_number", "doi", "title", "authors", "publication_date", "paper_folder",
-                           "paragraph_count", "word_count", "character_count", "notes"]
-        with (analysis / "analysis.csv").open("w", encoding="utf-8-sig", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=analysis_fields)
-            writer.writeheader()
-            for index, row in enumerate(selected, 1):
-                relative = f"papers/{index:02d}_{slugify(row['title'])[:70]}"
-                paper = staging / relative
-                paper.mkdir(parents=True)
-                (paper / "metadata.json").write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                writer.writerow({"sample_number": index, "doi": row["doi"], "title": row["title"],
-                                 "authors": row["authors"], "publication_date": row["publication_date"], "paper_folder": relative})
         (staging / "README.md").write_text(
             f"# {journal.name} journal analysis\n\n"
             f"Date range: **{start} through {end}**, inclusive. Publication basis: **{date_basis}**.\n\n"
@@ -527,9 +513,8 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
             f"({len(rows)} total). Random seed: `{selection_report['seed']}`.\n\n"
             "- `project.json`: configuration and the saved seed.\n"
             "- `output/`: matching CSV/BibTeX full exports and random sample, raw metadata and reports.\n"
-            "- `papers/`: one numbered folder per selected paper, with its metadata. Add your PDFs here.\n"
-            "- `analysis/analysis.csv`: an Excel-compatible table for recording your analysis.\n"
             "- `clean_and_count_text.ipynb`: paste PDF text, clean it, and copy word/paragraph counts.\n\n"
+            "Choose your own folders and files for PDFs and analysis results. "
             "PDFs are not downloaded. Crossref metadata and the notice-title filter need human review. "
             "The first-publication rule uses the earliest known online, print, published or issued date. "
             "Partial dates use the first day for filtering and retain their precision in exports.\n",

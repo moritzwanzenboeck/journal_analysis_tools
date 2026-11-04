@@ -56,7 +56,9 @@ class NotebookTests(unittest.TestCase):
             with patch.object(tools, 'fetch_records', return_value=([article()], [])):
                 state['create_button'].click()
             self.assertEqual(state['last_project']['path'], Path(root).resolve()/'widget-created')
-            self.assertTrue((Path(root)/'widget-created/analysis/analysis.csv').is_file())
+            self.assertTrue((Path(root)/'widget-created/output').is_dir())
+            self.assertFalse((Path(root)/'widget-created/papers').exists())
+            self.assertFalse((Path(root)/'widget-created/analysis').exists())
         state['journal_query'].value = 'Other journal'
         self.assertIsNone(state['journal_choice'].value)
         self.assertTrue(state['create_button'].disabled)

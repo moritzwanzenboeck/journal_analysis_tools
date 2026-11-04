@@ -105,13 +105,13 @@ class ProjectTests(unittest.TestCase):
             project = result['path']
             self.assertEqual(result['selected'], second['selected'])
             self.assertEqual(json.loads((project/'project.json').read_text())['seed'], 42)
-            self.assertEqual(len(list((project/'papers').glob('*/metadata.json'))), 4)
-            with (project/'analysis/analysis.csv').open(encoding='utf-8-sig', newline='') as handle:
-                analysis = list(csv.DictReader(handle))
-            self.assertEqual([row['doi'] for row in analysis], [row['doi'] for row in result['selected']])
-            for row in analysis:
-                self.assertTrue((project/row['paper_folder']/'metadata.json').is_file())
-                self.assertEqual(row['word_count'], '')
+            self.assertFalse((project/'papers').exists())
+            self.assertFalse((project/'analysis').exists())
+            self.assertEqual({p.name for p in project.iterdir()},
+                             {'project.json', 'README.md', 'clean_and_count_text.ipynb', 'output'})
+            with (project/result['config']['sample_export']).open(encoding='utf-8-sig', newline='') as handle:
+                exported_sample = list(csv.DictReader(handle))
+            self.assertEqual([row['doi'] for row in exported_sample], [row['doi'] for row in result['selected']])
             self.assertEqual(len(list((project/'output').iterdir())), 7)
             notebook = json.loads((project/'clean_and_count_text.ipynb').read_text())
             self.assertNotIn('widgets', notebook['metadata'])
