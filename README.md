@@ -59,10 +59,37 @@ appear in Crossref request URLs saved in a project's retrieval report.
 
 ### Optional notebook interface
 
-The notebooks remain available for users who prefer them. Use Python 3.10 or
-newer and install `requirements.txt`, then open `create_journal_analysis.ipynb`
-or `clean_and_count_text.ipynb` in Jupyter or VS Code. The existing
-`start_notebook.command` launcher is retained for that workflow.
+The notebooks remain available for users who prefer them. With Python 3.10+
+and the notebook requirements installed, double-click a Finder launcher:
+
+| Finder launcher | Notebook opened |
+| --- | --- |
+| **Open project notebook.app** | `create_journal_analysis.ipynb` |
+| **Open text notebook.app** | `clean_and_count_text.ipynb` |
+
+These small launchers start Jupyter in the background and open the selected
+notebook in your default browser. Use **Run All** to initialise its controls.
+They use your existing Python/Jupyter installation; the standalone desktop app
+is the option that bundles Python. Logs are written to
+`~/Library/Logs/Journal Analysis Tools/`. Closing a browser tab leaves the
+Jupyter server running; shut it down from Jupyter when finished.
+
+The Finder launchers are installed in the user's local Applications folder,
+with shortcuts in the tools folder. To create them for another checkout, run
+`python3 build_notebook_launchers.py` on macOS. Rebuild them if that checkout is
+moved. Generated app bundles and local shortcuts are ignored by Git.
+
+Two plain scripts are also provided: **start_notebook.command** for project
+creation and **start_text_notebook.command** for text cleanup. Double-clicking a
+`.command` on a local disk starts Jupyter in a Terminal window without typing
+commands. Shared drives may strip their executable flag; use the local Finder
+app launchers in that case. Both scripts locate the tools relative to themselves
+and support paths with spaces. The launchers prefer the checkout's `.venv`, then
+look for an existing Python environment containing Notebook, ipykernel and
+ipywidgets. `JOURNAL_TOOLS_PYTHON` can select a preferred Python executable.
+
+You can also open the notebooks directly in an existing Jupyter session or
+VS Code. Neither launch method executes notebook cells automatically.
 
 ## What a project contains
 
