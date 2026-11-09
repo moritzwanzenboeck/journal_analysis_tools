@@ -16,4 +16,4 @@ analysis/
 build/
 dist/
 *.spec
-*.app/
+*.app

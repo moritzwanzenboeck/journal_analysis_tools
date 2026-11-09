@@ -7,8 +7,10 @@ counts. There are no fixed journals, paper titles, personal paths or API keys.
 ## Open the app — no setup required
 
 Download the macOS ZIP from [GitHub Releases](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest),
-unzip it, and double-click **Journal Analysis Tools.app**. You can move the app
-to Applications or keep it in the tools folder. Python, Jupyter and a terminal
+unzip it, move **Journal Analysis Tools.app** to your local Applications folder,
+and double-click it. Run the app from a local disk: shared/network drives can
+strip executable permissions or add metadata that prevents launching. The
+repository and project files can remain on the shared drive. Python, Jupyter and a terminal
 are not required. Internet access is needed only for journal lookup and fetching;
 text cleanup and archived metadata replay work locally.
 
