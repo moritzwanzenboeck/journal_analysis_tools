@@ -1,0 +1,199 @@
+"""Check the shared launcher and real Jupyter process/kernel lifecycle offline."""
+from dataclasses import replace
+from pathlib import Path
+import os
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+from urllib.error import HTTPError
+from urllib.parse import urlparse, parse_qs
+
+from dev.build_notebook_launchers import APP_NAME, WINDOWS_APP_NAME, install, install_windows
+from app.notebook_services import NotebookService, SERVICES
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class LauncherTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'win32', 'Windows app compiler required')
+    def test_windows_app_compiles_and_launches_real_python_without_a_console(self):
+        with tempfile.TemporaryDirectory(prefix="journal's app ä ") as temporary:
+            destination = Path(temporary)
+            executable = install_windows(ROOT, destination)
+            self.assertEqual(executable.name, WINDOWS_APP_NAME)
+            binary = executable.read_bytes()
+            pe_offset = struct.unpack_from('<I', binary, 0x3c)[0]
+            self.assertEqual(binary[pe_offset:pe_offset + 4], b'PE\x00\x00')
+            # The PE Windows GUI subsystem avoids a console when double-clicked.
+            self.assertEqual(struct.unpack_from('<H', binary, pe_offset + 24 + 68)[0], 2)
+            result = subprocess.run([str(executable), '--check'], cwd=destination,
+                                    capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, 'The native app failed to start its Python launcher.')
+            original = executable.read_bytes()
+            with self.assertRaises(FileExistsError):
+                install_windows(ROOT, destination)
+            self.assertEqual(executable.read_bytes(), original)
+
+            # An invalid explicit Python choice must fail, rather than silently
+            # use a different environment. This is also checked by the Mac script.
+            result = subprocess.run([str(executable), '--check'], cwd=destination,
+                                    env=dict(os.environ, JOURNAL_TOOLS_PYTHON=str(destination / 'missing-python.exe')),
+                                    capture_output=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+
+    def test_preflight_checks_both_notebooks_without_opening_a_window(self):
+        result = subprocess.run([sys.executable, str(ROOT / 'notebook_launcher.py'), '--check'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for spec in SERVICES:
+            self.assertIn(spec.notebook, result.stdout)
+
+    @unittest.skipUnless(os.name == 'posix' and Path('/bin/bash').exists(), 'POSIX shell required')
+    def test_command_shortcuts_use_the_shared_launcher(self):
+        for script in ('start_notebook.command',):
+            result = subprocess.run(['/bin/bash', str(ROOT / script), '--check'],
+                                    capture_output=True, text=True,
+                                    env=dict(os.environ, JOURNAL_TOOLS_NO_DIALOG='1', JOURNAL_TOOLS_PYTHON=sys.executable))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('create_journal_analysis.ipynb', result.stdout)
+            self.assertIn('clean_and_count_text.ipynb', result.stdout)
+
+        result = subprocess.run(['/bin/bash', str(ROOT / 'start_notebook.command'), '--check'],
+                                capture_output=True, text=True,
+                                env=dict(os.environ, JOURNAL_TOOLS_NO_DIALOG='1', JOURNAL_TOOLS_PYTHON='/missing/python'))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requirements.txt', result.stderr)
+
+    def test_installer_validates_checkout_before_creating_destination(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            destination = root / 'Applications'
+            with self.assertRaises(FileNotFoundError):
+                install(root, destination)
+            self.assertFalse(destination.exists())
+
+    def test_installer_preserves_existing_apps(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / APP_NAME
+            app.mkdir()
+            marker = app / 'keep.txt'
+            marker.write_text('Existing app', encoding='utf-8')
+            with self.assertRaises(FileExistsError):
+                install(ROOT, Path(temporary))
+            self.assertEqual(marker.read_text(encoding='utf-8'), 'Existing app')
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'AppleScript apps are macOS only')
+    def test_installs_one_finder_app_with_spaces_quotes_and_unicode_in_path(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'Moritz\'s "journal" tools ä'
+            root.mkdir()
+            for name in ('app/launch_notebook.sh', 'notebook_launcher.py', 'app/__init__.py',
+                         'app/launcher.py', 'app/notebook_services.py',
+                         'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb'):
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, root / name)
+            destination = Path(temporary) / 'Applications'
+            install(root, destination)
+            self.assertEqual([path.name for path in destination.iterdir()], [APP_NAME])
+            self.assertTrue((destination / APP_NAME / 'Contents' / 'MacOS' / 'applet').is_file())
+
+
+class ServiceTests(unittest.TestCase):
+    def test_missing_notebook_creates_no_process(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            service = NotebookService(SERVICES[0], temporary, log_dir=temporary)
+            with self.assertRaisesRegex(FileNotFoundError, 'Notebook not found'):
+                service.start()
+            self.assertIsNone(service.process)
+            self.assertIsNone(service.url)
+
+    def test_startup_timeout_cleans_up_process_and_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            service = NotebookService(SERVICES[0], ROOT, log_dir=temporary)
+            with self.assertRaises(TimeoutError):
+                service.start(timeout=0)
+            self.assertFalse(service.running)
+            self.assertIsNone(service.process)
+            self.assertIsNone(service._runtime)
+            self.assertIsNone(service.url)
+
+    def test_ports_links_kernel_isolation_shutdown_and_restart(self):
+        with tempfile.TemporaryDirectory(prefix="journal's launch tests ä ") as temporary, \
+                socket.socket() as occupied:
+            occupied.bind(('127.0.0.1', 0))
+            occupied.listen()
+            preferred_port = occupied.getsockname()[1]
+            services = [NotebookService(replace(spec, preferred_port=preferred_port), ROOT, log_dir=temporary)
+                        for spec in SERVICES]
+            for service in services:
+                self.addCleanup(service.force_stop)
+            project, text = services
+            try:
+                for service in services:
+                    service.start()
+                    self.assertTrue(service.running)
+                    self.assertNotEqual(service.port, preferred_port)
+                    address = urlparse(service.url)
+                    self.assertEqual(address.hostname, '127.0.0.1')
+                    self.assertEqual(address.port, service.port)
+                    self.assertEqual(parse_qs(address.query)['token'], [service.token])
+                    self.assertTrue(address.path.endswith('/' + service.spec.notebook))
+                    with service._opener.open(service.url, timeout=5) as response:
+                        self.assertEqual(response.status, 200)
+                    with self.assertRaises(HTTPError) as denied:
+                        service._opener.open(service.base_url + 'api/kernels', timeout=3)
+                    self.assertEqual(denied.exception.code, 403)
+                    denied.exception.close()
+                self.assertNotEqual(project.port, text.port)
+                original_process = project.process
+                project.start()
+                self.assertIs(project.process, original_process)
+
+                project.request('api/kernels', 'POST')
+                text_kernel = text.request('api/kernels', 'POST')
+                self.assertEqual(project.kill_kernels(), 1)
+                self.assertEqual(project.request('api/kernels'), [])
+                self.assertEqual(text.request('api/kernels')[0]['id'], text_kernel['id'])
+                self.assertTrue(project.running)
+
+                # Force stop also ends kernels without relying on HTTP shutdown.
+                project.request('api/kernels', 'POST')
+                project.track_children()
+                owned = set(project._children)
+                self.assertTrue(owned, 'Expected a real kernel child process')
+                old_token = project.token
+                project.force_stop()
+                self.assertTrue(all(not process.is_running() for process in owned))
+                self.assertIsNone(project.port)
+                self.assertIsNone(project.url)
+                self.assertTrue(text.running)
+                self.assertEqual(occupied.getsockname()[1], preferred_port)
+
+                project.start()
+                self.assertNotEqual(project.token, old_token)
+                project.stop()
+                self.assertFalse(project.running)
+                text.track_children()
+                owned = set(text._children)
+                text.stop()
+                self.assertFalse(text.running)
+                self.assertTrue(all(not process.is_running() for process in owned))
+            except Exception:
+                for service in services:
+                    if service.log_path.is_file():
+                        log = service.log_path.read_text(encoding='utf-8', errors='replace')
+                        if service.token:
+                            log = log.replace(service.token, '<redacted>')
+                        print(log[-6000:], file=sys.stderr)
+                raise
+            finally:
+                for service in services:
+                    service.force_stop()
+
+
+if __name__ == '__main__':
+    unittest.main()

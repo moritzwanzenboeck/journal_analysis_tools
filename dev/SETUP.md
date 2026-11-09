@@ -1,0 +1,76 @@
+# One-time setup and troubleshooting
+
+These steps prepare the same launcher and notebook tools on Windows and macOS.
+They are needed once on each computer. If you are unfamiliar with Python or the
+terminal, ask the person providing these tools to prepare the folder for you.
+
+## Before you start
+
+Install Python 3.10 or newer from [python.org](https://www.python.org/downloads/).
+On Windows, include **Tcl/Tk and IDLE** and the Python launcher in the installer.
+On a Mac, use the **universal2** installer, which includes Tk and supports Intel
+and Apple Silicon. Use a Python release that supports your macOS version.
+
+Keep the downloaded tools together in a local folder. Create the Python
+environment on that computer; do not copy `.venv` from another computer or
+operating system. The launcher uses this environment and does not bundle or
+automatically install Python or Jupyter.
+
+## Windows
+
+Open the tools folder in File Explorer. Right-click an empty area and choose
+**Open in Terminal**, using PowerShell. Run:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe dev\build_notebook_launchers.py
+```
+
+Then double-click **Journal Notebook Launcher.exe** in the tools folder.
+The app builder uses the C# compiler included with .NET Framework on Windows.
+
+## Mac: Intel and Apple Silicon
+
+Open Terminal in the tools folder and run:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python dev/build_notebook_launchers.py
+```
+
+Then double-click **Journal Notebook Launcher.app** in the tools folder.
+An existing copy installed in your Applications folder also works with the
+original tools folder. The `.command` shortcut opens the same launcher.
+
+With native Python and dependencies, Apple Silicon does not need Rosetta.
+
+## If something does not work
+
+| Problem | What to check |
+| --- | --- |
+| No launcher app in the folder | Complete the setup steps for your operating system. |
+| The builder says an app already exists | Move the existing launcher out of the folder before rebuilding. Other files can stay in place. |
+| The app cannot find Python or a required package | Reinstall `requirements.txt` using the `.venv` Python command above. |
+| The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
+| The copy button cannot access the clipboard | Select the displayed count and copy it manually. The notebook must run on your own computer to use its clipboard. |
+| The app fails after the tools folder was moved | Keep the app beside `notebook_launcher.py` and `app/`, or rebuild it for the new folder. |
+| macOS blocks the app | For an app you trust, use the approval offered in **System Settings → Privacy & Security**, following your organisation's policy. |
+
+For a source-level environment check without opening a window:
+
+| Windows | Mac |
+| --- | --- |
+| `.venv\Scripts\python.exe notebook_launcher.py --check` | `.venv/bin/python notebook_launcher.py --check` |
+
+If you need help, the launcher's error message identifies the relevant log.
+Logs are stored here:
+
+| Computer | Log folder |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\Journal Analysis Tools\Logs\` |
+| Mac | `~/Library/Logs/Journal Analysis Tools/` |
+
+Logs and notebook links can contain local access tokens. Share only the relevant
+error text when requesting help.

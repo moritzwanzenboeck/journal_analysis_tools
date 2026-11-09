@@ -1,2 +1,0 @@
--r requirements-app.txt
-pyinstaller>=6,<7

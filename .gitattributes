@@ -1,0 +1,7 @@
+# Finder launch scripts must also work when files were checked out on Windows.
+*.sh text eol=lf
+*.command text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.ipynb text eol=lf
+*.yml text eol=lf

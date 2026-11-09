@@ -1,6 +1,6 @@
 """Journal-agnostic Crossref metadata, random sampling and project creation.
 
-Use the desktop app or create_journal_analysis.ipynb as the interactive entry point.
+Use create_journal_analysis.ipynb as the interactive entry point.
 The backend uses only the Python standard library.
 """
 from __future__ import annotations
@@ -93,7 +93,7 @@ def publication_date(item, basis):
 
 
 def tls_context():
-    # Bundled desktop builds carry a CA bundle independent of the host Python.
+    # Use a current CA bundle when installed, independently of the host Python.
     try:
         import certifi
     except ImportError:
@@ -462,10 +462,13 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
     name = project_folder_name(journal, start, end) if project_name is None else project_name
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", name):
         raise ValueError("Project folder name must be a single name using letters, digits, dots, underscores or hyphens.")
+    reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {f'{prefix}{number}' for prefix in ('COM', 'LPT') for number in range(1, 10)}
+    if name.endswith('.') or name.split('.')[0].upper() in reserved:
+        raise ValueError("Choose a folder name that works on Windows and macOS: avoid trailing dots and reserved names such as CON, NUL or COM1.")
     destination = projects_root / name
     if destination.exists():
         raise FileExistsError(f"Project already exists: {destination}. Choose a different project folder name.")
-    template_path = Path(template_path) if template_path else Path(__file__).resolve().with_name("clean_and_count_text.ipynb")
+    template_path = Path(template_path) if template_path else Path(__file__).resolve().parent.parent / "clean_and_count_text.ipynb"
     template = json.loads(template_path.read_text(encoding="utf-8"))
     # Clear saved widget/editor state before making a project-local copy.
     template.get("metadata", {}).pop("widgets", None)
@@ -519,8 +522,8 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
             f"({len(rows)} total). Random seed: `{selection_report['seed']}`.\n\n"
             "- `project.json`: configuration and the saved seed.\n"
             "- `output/`: matching CSV/BibTeX full exports and random sample, raw metadata and reports.\n"
-            "- `clean_and_count_text.ipynb`: optional notebook version of the text-cleaning tool.\n\n"
-            "Use the desktop app’s Clean and count text tab to work without Jupyter. "
+            "- `clean_and_count_text.ipynb`: self-contained text-cleaning notebook.\n\n"
+            "Open the text-cleaning notebook in Jupyter and run all cells. "
             "Choose your own folders and files for PDFs and analysis results. "
             "PDFs are not downloaded. Crossref metadata and the notice-title filter need human review. "
             "The first-publication rule uses the earliest known online, print, published or issued date. "

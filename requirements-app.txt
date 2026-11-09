@@ -1,3 +1,0 @@
-# Desktop source dependencies; tkinter is included with python.org macOS builds.
-certifi>=2024.2.2
-tzdata>=2024.1

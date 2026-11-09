@@ -12,8 +12,10 @@ papers/
 analysis/
 *_journalanalysis_*/
 
-# Generated desktop application artifacts
+# Generated launcher application artifacts and local logs
 build/
 dist/
 *.spec
 *.app
+/Journal Notebook Launcher.exe
+*.log

@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
-import journal_tools as tools
+from app import journal_tools as tools
 
 JOURNAL = tools.Journal("Example Journal", ("1234-5679", "2049-3630"))
 

@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-import journal_tools as tools
+from app import journal_tools as tools
 from test_metadata import article, JOURNAL
 
 
@@ -113,7 +113,7 @@ class ProjectTests(unittest.TestCase):
                 exported_sample = list(csv.DictReader(handle))
             self.assertEqual([row['doi'] for row in exported_sample], [row['doi'] for row in result['selected']])
             self.assertEqual(len(list((project/'output').iterdir())), 7)
-            notebook = json.loads((project/'clean_and_count_text.ipynb').read_text())
+            notebook = json.loads((project/'clean_and_count_text.ipynb').read_text(encoding='utf-8'))
             self.assertNotIn('widgets', notebook['metadata'])
             self.assertTrue(all(c.get('outputs', []) == [] for c in notebook['cells']))
             original = (project/'project.json').read_bytes()
@@ -144,7 +144,9 @@ class ProjectTests(unittest.TestCase):
     def test_invalid_configuration_is_rejected_before_fetch(self):
         with tempfile.TemporaryDirectory() as root, \
                 patch.object(tools, 'fetch_records', side_effect=AssertionError('Should not fetch')):
-            for kwargs in ({'project_name': '../escape'}, {'date_basis': 'bad'}, {'seed': 'abc'}, {'project_name': '/absolute'}):
+            for kwargs in ({'project_name': '../escape'}, {'date_basis': 'bad'}, {'seed': 'abc'}, {'project_name': '/absolute'},
+                           {'project_name': 'CON'}, {'project_name': 'nul.txt'}, {'project_name': 'cOm1'},
+                           {'project_name': 'LPT9.bak'}, {'project_name': 'trailing.'}):
                 with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                     tools.create_project(JOURNAL, self.start, self.end, 1, root, **kwargs)
             with self.assertRaises(ValueError):
