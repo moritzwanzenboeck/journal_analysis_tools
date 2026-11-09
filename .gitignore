@@ -11,3 +11,9 @@ output/
 papers/
 analysis/
 *_journalanalysis_*/
+
+# Generated desktop application artifacts
+build/
+dist/
+*.spec
+*.app/

@@ -1,6 +1,6 @@
 """Journal-agnostic Crossref metadata, random sampling and project creation.
 
-Use create_journal_analysis.ipynb as the interactive entry point.
+Use the desktop app or create_journal_analysis.ipynb as the interactive entry point.
 The backend uses only the Python standard library.
 """
 from __future__ import annotations
@@ -93,7 +93,13 @@ def publication_date(item, basis):
 
 
 def tls_context():
-    context = ssl.create_default_context()
+    # Bundled desktop builds carry a CA bundle independent of the host Python.
+    try:
+        import certifi
+    except ImportError:
+        context = ssl.create_default_context()
+    else:
+        context = ssl.create_default_context(cafile=certifi.where())
     # python.org macOS builds can lack their own CA bundle. Keep verification on
     # and additionally load the operating system's CA certificates when available.
     system_bundle = Path("/etc/ssl/cert.pem")
@@ -513,7 +519,8 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
             f"({len(rows)} total). Random seed: `{selection_report['seed']}`.\n\n"
             "- `project.json`: configuration and the saved seed.\n"
             "- `output/`: matching CSV/BibTeX full exports and random sample, raw metadata and reports.\n"
-            "- `clean_and_count_text.ipynb`: paste PDF text, clean it, and copy word/paragraph counts.\n\n"
+            "- `clean_and_count_text.ipynb`: optional notebook version of the text-cleaning tool.\n\n"
+            "Use the desktop app’s Clean and count text tab to work without Jupyter. "
             "Choose your own folders and files for PDFs and analysis results. "
             "PDFs are not downloaded. Crossref metadata and the notice-title filter need human review. "
             "The first-publication rule uses the earliest known online, print, published or issued date. "
