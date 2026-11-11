@@ -1,7 +1,7 @@
 # Repository guidance
 
 This repository provides two Jupyter notebook services: project creation and text
-cleanup. `notebook_launcher.py` opens `app/launcher.py`, their shared control window;
+cleanup and full-paper categorization. `notebook_launcher.py` opens `app/launcher.py`, their shared control window;
 `app/notebook_services.py` owns Jupyter processes and their lifecycle. Keep analysis
 and text editing in the notebooks rather than rebuilding a full desktop client.
 
@@ -33,3 +33,12 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   Windows, Intel macOS and Apple Silicon macOS. Both native app builders default
   to the tools folder. Preserve the compatibility workflow for all three targets;
   distinguish configured CI checks from results actually run on a platform.
+
+- Keep the notebook self-contained and its full-paper model in parity with
+  `app/paper_tools.py`. Preserve the original clean-and-count tab. In generated
+  projects read sampled papers from `project.json`'s CSV and always save cleaned
+  text/assignment JSON in that project's `paper_categorizations/` folder. Do not
+  commit user text or categorization files.
+- Update summary widgets in place, preserve fixed cell/button positions and keep
+  previews out of the document flow. Hiding a preview must clear and hide the
+  whole panel. Maintain project, persistence and layout regression checks.

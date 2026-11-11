@@ -1,7 +1,7 @@
 # Journal Analysis Tools
 
 Create a random sample of papers from a journal, or clean text copied from a PDF
-and count its words and paragraphs.
+and count its words and paragraphs, or categorize a whole paper by section.
 
 ## Open the app
 
@@ -60,9 +60,51 @@ The copy buttons work on Windows and macOS when the tool runs on your computer.
 Text cleanup works without internet access. Review the result against the PDF:
 automatic cleanup can misinterpret headings, line breaks and hyphens.
 
+## Categorize a whole paper
+
+The same notebook has a separate **Categorize full paper** tab. The original
+clean-and-count workflow remains in **Clean & count (original)**.
+
+1. In **Save and reload**, check **Project folder** and click **Scan project
+   folder**. A notebook opened inside a generated journal project detects that
+   project automatically. When using the central launcher, select your project
+   folder here.
+2. Select one of the randomly sampled papers and click **Start / reopen paper**.
+   This opens its latest saved categorization, or prepares a new paper. To attach
+   text you have already pasted, use **Associate current text** instead.
+3. Paste the whole paper into **Original paper**, excluding table text, figure
+   notes and formulas. Review line-end hyphens, then click **Clean full paper**.
+4. Review the cleaned text and detected headings. Under **Review / correct heading
+   boundaries**, edit the outline as `level | exact heading title`, then click
+   **Apply reviewed outline**. Reapply the outline after editing the cleaned text.
+5. Assign each section or subsection to Introduction, Literature Review, Theory,
+   Data, Methods, Results, Discussion or Conclusion. **Apply to subsections**
+   assigns a parent and its descendants; individual labels can then be changed.
+   Leave unfinished labels **Unassigned**, or choose **Exclude from summary**.
+6. Use the summary's copy buttons for section titles, subsection titles, words
+   and paragraphs, or copy the whole table into Excel. Title lists scroll within
+   their cells; the cells and copy buttons keep their positions.
+7. Click **Save cleaned text + JSON**. In a journal project both files always go
+   into its `paper_categorizations` folder. **Saved JSON** lists categorizations
+   found throughout the project; select one and click **Load selected JSON** to
+   revise it. Other project JSON files are excluded from this list.
+
+**Show text** opens a floating section preview; click it again or **Hide text**
+to close the preview completely. The summary stays in place. Review automatic
+heading boundaries against the PDF before using the counts. Heading words are
+included by default; paragraph counts cover body text. See the
+[counting reference](dev/analysis_reference.md) for details.
+
+Outside a project you can choose a save folder and load JSON using its file
+picker or path. Save before switching papers. If you intentionally want to
+replace unsaved work, enable **Allow replacing the current unsaved paper**.
+Existing files require **Overwrite existing files** before replacement.
+
 ## Finish or recover a tool
 
-Copy any cleaned text you want to keep into your document before stopping a tool.
+Copy any standalone cleaned text you want to keep into your document, and save
+full-paper categorizations as JSON before stopping or restarting a tool. Saving
+the notebook itself is not a substitute for saving categorization JSON.
 
 | What you need | What to do |
 | --- | --- |

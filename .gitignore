@@ -19,3 +19,6 @@ dist/
 *.app
 /Journal Notebook Launcher.exe
 *.log
+
+# User paper text and categorization assignments
+paper_categorizations/

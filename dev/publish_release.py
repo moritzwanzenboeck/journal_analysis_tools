@@ -46,7 +46,7 @@ def validate_assets(version, directory, revision):
             if (metadata.get('version') != version or metadata.get('target') != target
                     or metadata.get('source_commit') != revision or metadata.get('python_bundled') is not False):
                 raise ValueError(f'Invalid release metadata for {archive.name}')
-            required = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py',
+            required = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
                         'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
             required += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
             for name in required:

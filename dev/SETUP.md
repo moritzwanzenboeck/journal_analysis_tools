@@ -99,6 +99,20 @@ The existing app stays in place while the replacement is built. If compilation
 fails, the previous app is kept. An open Windows launcher must be closed before
 its executable can be replaced.
 
+## Update the notebook tools
+
+Changes to notebooks and runtime Python files do not require recompiling an
+existing launcher. Keep all updated files together. Save each active paper as
+categorization JSON first, then restart its kernel and choose **Run All Cells**
+to load the new code. Unsaved widget text is cleared by a kernel restart.
+
+Generated journal projects contain a self-contained copy of
+`clean_and_count_text.ipynb`. Existing copies are not replaced automatically.
+After saving active categorizations, copy the updated notebook from the tools
+folder into the project, replacing that notebook only. Keep `project.json`,
+`output/` and `paper_categorizations/` intact. Alternatively use the central
+notebook and choose the existing project in **Project folder**.
+
 ## If something does not work
 
 | Problem | What to check |
@@ -107,6 +121,13 @@ its executable can be replaced.
 | The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
 | The app cannot find Python or a required package | Reinstall `requirements.txt` using the `.venv` Python command above. |
 | The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
+| No sampled papers appear | Select the generated project folder and click **Scan project folder**. It needs its original `project.json` and the CSV named by `sample_export`. The central launcher cannot infer which project you want. |
+| A saved paper is missing from the JSON list | Scan again after saving externally. Only full-paper categorization JSON is listed, not Crossref or sampling reports. You can also load a file by path or upload. |
+| Saving reports that files exist | Review the paper prefix and enable **Overwrite existing files** only to replace that saved pair. All saves in a project use `paper_categorizations/`. |
+| Loading or changing paper reports unsaved work | Save the current paper first, or explicitly enable **Allow replacing the current unsaved paper**. |
+| Counts disappear after editing cleaned text | Review the headings and click **Apply reviewed outline** to rebuild counts and assignments. |
+| A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
+| A long title list is clipped | Scroll vertically within its summary cell. On a narrow window, scroll the whole table horizontally. Buttons retain their positions. |
 | The copy button cannot access the clipboard | Select the displayed count and copy it manually. The notebook must run on your own computer to use its clipboard. |
 | The app fails after the tools folder was moved | Keep the precompiled app beside `notebook_launcher.py` and `app/`. Recreate `.venv` if its old environment no longer works after moving. Source-built, separately installed apps may need rebuilding. |
 | macOS blocks the app | For an app you trust, use the approval offered in **System Settings → Privacy & Security**, following your organisation's policy. |

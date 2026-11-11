@@ -27,7 +27,7 @@ SOURCE_FILES = (
     'README.md', 'requirements.txt', 'notebook_launcher.py', 'start_notebook.command',
     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb',
     'app/__init__.py', 'app/launcher.py', 'app/notebook_services.py',
-    'app/journal_tools.py', 'app/text_tools.py', 'app/launch_notebook.sh', 'app/assets/app.icns',
+    'app/journal_tools.py', 'app/text_tools.py', 'app/paper_tools.py', 'app/launch_notebook.sh', 'app/assets/app.icns',
     'dev/SETUP.md', 'dev/analysis_reference.md', 'dev/README.md',
     'dev/build_notebook_launchers.py', 'dev/windows_launcher.cs',
 )

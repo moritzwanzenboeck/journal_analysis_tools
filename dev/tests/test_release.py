@@ -22,7 +22,7 @@ def make_assets(directory):
         with zipfile.ZipFile(archive, 'w') as zipped:
             metadata = dict(version='v1.1.0', target=target, source_commit=REVISION, python_bundled=False)
             zipped.writestr(archive.stem+'/RELEASE.json', json.dumps(metadata))
-            files = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py',
+            files = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
                      'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
             files += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
             for name in files:

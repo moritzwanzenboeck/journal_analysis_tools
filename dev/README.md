@@ -36,7 +36,15 @@ certify behavior on either Mac architecture.
 `app/` contains runtime Python modules, the shared shell entry point and icon
 assets. `notebook_launcher.py` is the small user-facing entry point. The notebooks
 stay at the root; project creation copies the self-contained text notebook from
-there. Keep path lookup independent of the shell's working directory.
+there. `app/paper_tools.py` mirrors the self-contained notebook's full-paper
+model, including project discovery, sampled DOI metadata and JSON persistence.
+`dev/tests/test_paper_categorization.py` checks model parity, count boundaries,
+label changes, roundtrip/rollback, project selection and the fixed save-folder
+invariant. Notebook callbacks are tested with temporary synthetic projects.
+Summary refreshes update existing widgets in place; copy callbacks compute the
+current value. Fixed grid rows/columns and bounded title panels prevent controls
+from moving. The floating preview must fully hide and clear its text.
+Keep path lookup independent of the shell's working directory.
 
 To build the Windows app or install the single Finder app on macOS, run this
 with the Python environment containing the notebook requirements:
@@ -119,3 +127,22 @@ A workflow or local Mac run alone does not certify Windows or Apple Silicon:
 inspect the actual release-run results. Users download the attached platform
 ZIPs under Assets, not GitHub's automatically generated Source code archives.
 They do not run a compiler or the app builder.
+
+## Check the full-paper layout in a browser
+
+The unit suite checks widget identities, dimensions, callbacks and preview state.
+For actual browser geometry, install the optional browser dependencies and run:
+
+```bash
+python -m pip install -r dev/requirements-browser.txt
+python -m playwright install chromium
+python dev/check_paper_layout.py
+```
+
+This starts an isolated local Jupyter service and headless browser, uses a
+synthetic 10-paper project, and checks long-title wrapping, stable copy-button
+positions after relabeling, preview hiding, narrow windows and
+the locked project save folder. It does not use the system clipboard. Pass
+`--browser-executable` to use an installed Chrome/Chromium instead of downloading
+a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
+optional browser check; the compatibility workflow runs the unit/service suite.
