@@ -95,44 +95,77 @@ class FullPaperTests(unittest.TestCase):
             s['paper_upload_changed']({'new':({'name':'saved.json','content':memoryview(data.read_bytes())},)})
             self.assertEqual(s['paper_state']['document']['units'][3]['category'],'Results')
 
-    def test_unassigned_warning_and_highlights_update_without_moving_controls(self):
+    def test_progress_and_copy_warning_update_without_moving_controls(self):
         s=self.s;doc=populate(s)
         grid=s['paper_state']['summary_grid'];children=grid.children
         rows=dict(s['paper_state']['section_widgets'])
-        warning=s['paper_completion_warning']
-        self.assertIn('summary incomplete',warning.value)
-        self.assertEqual(warning.layout.height,'76px')
-        self.assertEqual(len(rows),len(doc['units']))
+        progress=s['paper_assignment_progress']
+        self.assertIn('0/7 sections assigned',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
+        self.assertNotIn('✓',progress.value)
+        self.assertEqual(progress.layout.height,'32px')
+        self.assertLess(s['paper_workflow'].children.index(progress),s['paper_workflow'].children.index(s['paper_section_rows']))
         for unit in doc['units']:
             self.assertIn('paper-unassigned',rows[unit['id']]._dom_classes)
         parent=doc['units'][2]
         s['paper_state']['dropdowns'][parent['id']].value='Not categorizable'
         s['paper_assign_descendants'](parent['id'])
+        self.assertIn('3/7 sections assigned',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
         for unit in doc['units'][2:5]:
             self.assertNotIn('paper-unassigned',rows[unit['id']]._dom_classes)
-            self.assertEqual(unit['category'],'Not categorizable')
+        # Copying is allowed, but surfaces the warning beside progress in the selection area.
+        button=s['paper_state']['summary_cells'][('Not categorizable','words')][1]
+        with patch.object(s['shutil'],'which',return_value=None):button.click()
+        self.assertIn('role="alert"',progress.value)
+        self.assertIn('categories incomplete',progress.value)
+        self.assertIn('3/7 sections assigned',progress.value)
+        self.assertTrue(s['paper_copy_fallback'].value)
         for unit in doc['units']:
             if unit['category']=='Unassigned':
                 s['paper_state']['dropdowns'][unit['id']].value='Exclude from summary'
-        self.assertIn('All sections have been categorized',warning.value)
-        self.assertNotIn('role="alert"',warning.value)
+        self.assertIn('7/7 sections assigned',progress.value)
+        self.assertIn('✓',progress.value)
+        self.assertIn('color:#237a35',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
+        self.assertFalse(s['paper_state']['copied_while_incomplete'])
         self.assertTrue(all('paper-unassigned' not in row._dom_classes for row in rows.values()))
-        # Empty categories are valid; counts in the final normal category are retained.
         summary=s['paper_summary'](doc)
         self.assertEqual(summary['Introduction']['words'],0)
         self.assertGreater(summary['Not categorizable']['words'],0)
         self.assertEqual(s['paper_validate_document'](s['paper_export_document'](doc)),doc)
+        with patch.object(s['shutil'],'which',return_value=None):s['paper_copy_table_button'].click()
+        self.assertNotIn('role="alert"',progress.value)
         self.assertIs(s['paper_state']['summary_grid'],grid)
         self.assertEqual(grid.children,children)
         self.assertEqual(s['paper_state']['section_widgets'],rows)
+        # Becoming incomplete again does not show a warning until another copy.
         s['paper_state']['dropdowns'][parent['id']].value='Unassigned'
-        self.assertIn('1 section(s)',warning.value)
+        self.assertIn('6/7 sections assigned',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
+        self.assertNotIn('✓',progress.value)
         self.assertIn('paper-unassigned',rows[parent['id']]._dom_classes)
+        with patch.object(s['shutil'],'which',return_value=None):s['paper_copy_table_button'].click()
+        self.assertIn('role="alert"',progress.value)
         s['paper_load_document'](s['paper_export_document'](doc))
-        self.assertIn('summary incomplete',warning.value)
+        self.assertIn('6/7 sections assigned',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
         self.assertIn('paper-unassigned',s['paper_state']['section_widgets'][parent['id']]._dom_classes)
         s['paper_cleaned'].value+='\n\nAn edit.'
-        self.assertIn('Apply the reviewed outline',warning.value)
+        self.assertIn('Reapply outline',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
+
+    def test_copy_warning_covers_native_clipboard_and_resets_for_fresh_cleanup(self):
+        s=self.s;populate(s)
+        progress=s['paper_assignment_progress']
+        with patch.object(s['sys'],'platform','darwin'), patch.object(s['shutil'],'which',return_value='pbcopy'), \
+             patch.object(s['subprocess'],'run') as run:
+            s['paper_state']['summary_cells'][('Data','words')][1].click()
+            self.assertTrue(run.called)
+        self.assertIn('role="alert"',progress.value)
+        s['paper_clean_button'].click()
+        self.assertIn('0/7 sections assigned',progress.value)
+        self.assertNotIn('role="alert"',progress.value)
 
     def test_title_buttons_copy_one_title_per_line(self):
         s=self.s;doc=populate(s)

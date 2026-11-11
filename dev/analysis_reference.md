@@ -164,10 +164,15 @@ text. Summary cells keep fixed sizes, long title lists scroll vertically inside
 them, and narrow windows use one outer horizontal scrollbar.
 
 The final normal category, **Not categorizable**, includes its words, paragraphs
-and titles in the summary like any other category. **Unassigned** triggers a
-completion warning and highlights the corresponding section/subsection rows;
+and titles in the summary like any other category. **Unassigned** highlights
+the corresponding section/subsection rows;
 **Exclude from summary** is an explicit exclusion and does not trigger a warning.
-Empty categories are valid. Highlights and the warning update in place when
-labels change, including parent assignments and reloaded JSON. Individual title
-buttons copy newline-separated titles. The whole-table Excel export retains
+Empty categories are valid. The selection area shows compact progress such as
+`1/7 sections assigned` and a green checkmark on completion. A warning appears
+there only after pressing a copy button while some parts remain unassigned;
+copying still works. The warning clears on completion or when starting/loading
+another paper, and is not saved in JSON. Excluded parts count as assigned.
+Highlights and progress update in place when labels change, including parent
+assignments and reloaded JSON. Individual title buttons copy newline-separated
+titles. The whole-table Excel export retains
 semicolon-separated lists within each tab-separated cell.
