@@ -95,6 +95,67 @@ class FullPaperTests(unittest.TestCase):
             s['paper_upload_changed']({'new':({'name':'saved.json','content':memoryview(data.read_bytes())},)})
             self.assertEqual(s['paper_state']['document']['units'][3]['category'],'Results')
 
+    def test_unassigned_warning_and_highlights_update_without_moving_controls(self):
+        s=self.s;doc=populate(s)
+        grid=s['paper_state']['summary_grid'];children=grid.children
+        rows=dict(s['paper_state']['section_widgets'])
+        warning=s['paper_completion_warning']
+        self.assertIn('summary incomplete',warning.value)
+        self.assertEqual(warning.layout.height,'76px')
+        self.assertEqual(len(rows),len(doc['units']))
+        for unit in doc['units']:
+            self.assertIn('paper-unassigned',rows[unit['id']]._dom_classes)
+        parent=doc['units'][2]
+        s['paper_state']['dropdowns'][parent['id']].value='Not categorizable'
+        s['paper_assign_descendants'](parent['id'])
+        for unit in doc['units'][2:5]:
+            self.assertNotIn('paper-unassigned',rows[unit['id']]._dom_classes)
+            self.assertEqual(unit['category'],'Not categorizable')
+        for unit in doc['units']:
+            if unit['category']=='Unassigned':
+                s['paper_state']['dropdowns'][unit['id']].value='Exclude from summary'
+        self.assertIn('All sections have been categorized',warning.value)
+        self.assertNotIn('role="alert"',warning.value)
+        self.assertTrue(all('paper-unassigned' not in row._dom_classes for row in rows.values()))
+        # Empty categories are valid; counts in the final normal category are retained.
+        summary=s['paper_summary'](doc)
+        self.assertEqual(summary['Introduction']['words'],0)
+        self.assertGreater(summary['Not categorizable']['words'],0)
+        self.assertEqual(s['paper_validate_document'](s['paper_export_document'](doc)),doc)
+        self.assertIs(s['paper_state']['summary_grid'],grid)
+        self.assertEqual(grid.children,children)
+        self.assertEqual(s['paper_state']['section_widgets'],rows)
+        s['paper_state']['dropdowns'][parent['id']].value='Unassigned'
+        self.assertIn('1 section(s)',warning.value)
+        self.assertIn('paper-unassigned',rows[parent['id']]._dom_classes)
+        s['paper_load_document'](s['paper_export_document'](doc))
+        self.assertIn('summary incomplete',warning.value)
+        self.assertIn('paper-unassigned',s['paper_state']['section_widgets'][parent['id']]._dom_classes)
+        s['paper_cleaned'].value+='\n\nAn edit.'
+        self.assertIn('Apply the reviewed outline',warning.value)
+
+    def test_title_buttons_copy_one_title_per_line(self):
+        s=self.s;doc=populate(s)
+        for index in (1,2,3,4):
+            s['paper_state']['dropdowns'][doc['units'][index]['id']].value='Data'
+        summary=s['paper_summary'](doc)['Data']
+        for key in ('section_titles','subsection_titles'):
+            self.assertEqual(len(summary[key]),2)
+            button=s['paper_state']['summary_cells'][('Data',key)][1]
+            expected='\n'.join(summary[key])
+            for system,encoding in [('darwin','utf-8'),('win32','utf-16-le')]:
+                with patch.object(s['sys'],'platform',system), patch.object(s['shutil'],'which',return_value='clipboard'), \
+                     patch.object(s['subprocess'],'CREATE_NO_WINDOW',0x08000000,create=True), patch.object(s['subprocess'],'run') as run:
+                    button.click()
+                    self.assertEqual(run.call_args.kwargs['input'].decode(encoding),expected)
+            with patch.object(s['shutil'],'which',return_value=None):button.click()
+            self.assertEqual(s['paper_copy_fallback'].value,expected)
+        with patch.object(s['shutil'],'which',return_value=None):s['paper_copy_table_button'].click()
+        table=s['paper_copy_fallback'].value
+        self.assertEqual(len(table.splitlines()),10)
+        self.assertIn('1. Introduction; 2. Methods',table)
+        self.assertIn('Not categorizable',table)
+
     def test_failed_publication_restores_both_previous_files(self):
         s=self.s;doc=populate(s)
         with tempfile.TemporaryDirectory() as temporary:
@@ -201,7 +262,7 @@ class ProjectPaperTests(unittest.TestCase):
         functions={node.name:ast.dump(node,include_attributes=False) for node in ast.parse(source).body if isinstance(node,ast.FunctionDef)}
         reusable={node.name:ast.dump(node,include_attributes=False) for node in ast.parse((ROOT/'app/paper_tools.py').read_text()).body if isinstance(node,ast.FunctionDef)}
         self.assertEqual(functions,reusable)
-        self.assertEqual(paper_tools.PAPER_CATEGORIES,('Introduction','Literature Review','Theory','Data','Methods','Results','Discussion','Conclusion'))
+        self.assertEqual(paper_tools.PAPER_CATEGORIES,('Introduction','Literature Review','Theory','Data','Methods','Results','Discussion','Conclusion','Not categorizable'))
 
     def test_project_detection_sample_list_and_saved_json_scan(self):
         from app import paper_tools as tools
@@ -267,7 +328,7 @@ class ProjectPaperTests(unittest.TestCase):
         s=notebook_state();doc=populate(s)
         grid=s['paper_state']['summary_grid'];children=grid.children
         for i,unit in enumerate(doc['units']):
-            s['paper_state']['dropdowns'][unit['id']].value=s['PAPER_CATEGORIES'][i%8]
+            s['paper_state']['dropdowns'][unit['id']].value=s['PAPER_CATEGORIES'][i%len(s['PAPER_CATEGORIES'])]
             self.assertIs(s['paper_state']['summary_grid'],grid)
             self.assertEqual(s['paper_state']['summary_grid'].children,children)
         uid=doc['units'][1]['id'];control=s['paper_state']['preview_buttons'][uid]
@@ -280,7 +341,7 @@ class ProjectPaperTests(unittest.TestCase):
         self.assertEqual(s['paper_preview_title'].value,'')
         control.click();s['paper_hide_text_button'].click()
         self.assertEqual(s['paper_preview_panel'].layout.display,'none')
-        self.assertEqual(grid.layout.grid_template_rows,'36px repeat(8, 156px)')
+        self.assertEqual(grid.layout.grid_template_rows,'36px repeat(9, 156px)')
         for value,button in s['paper_state']['summary_cells'].values():
             self.assertEqual(value.layout.height,'102px')
             self.assertEqual(button.layout.height,'32px')

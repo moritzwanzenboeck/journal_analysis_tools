@@ -78,11 +78,15 @@ clean-and-count workflow remains in **Clean & count (original)**.
    boundaries**, edit the outline as `level | exact heading title`, then click
    **Apply reviewed outline**. Reapply the outline after editing the cleaned text.
 5. Assign each section or subsection to Introduction, Literature Review, Theory,
-   Data, Methods, Results, Discussion or Conclusion. **Apply to subsections**
+   Data, Methods, Results, Discussion, Conclusion or Not categorizable. **Apply to subsections**
    assigns a parent and its descendants; individual labels can then be changed.
-   Leave unfinished labels **Unassigned**, or choose **Exclude from summary**.
+   Use **Not categorizable** for parts that should be counted but do not fit the
+   other categories. Leave unfinished labels **Unassigned**, or choose **Exclude from summary**.
+   The summary warns about unassigned parts and highlights their rows above;
+   empty categories are allowed.
 6. Use the summary's copy buttons for section titles, subsection titles, words
-   and paragraphs, or copy the whole table into Excel. Title lists scroll within
+   and paragraphs, or copy the whole table into Excel. Title buttons copy one
+   title per line. Title lists scroll within
    their cells; the cells and copy buttons keep their positions.
 7. Click **Save cleaned text + JSON**. In a journal project both files always go
    into its `paper_categorizations` folder. **Saved JSON** lists categorizations

@@ -41,6 +41,10 @@ model, including project discovery, sampled DOI metadata and JSON persistence.
 `dev/tests/test_paper_categorization.py` checks model parity, count boundaries,
 label changes, roundtrip/rollback, project selection and the fixed save-folder
 invariant. Notebook callbacks are tested with temporary synthetic projects.
+Completion warnings track unassigned sections, with row highlights updated in place.
+The warning uses a fixed-height slot, so clearing it does not shift the summary.
+The final counted category is Not categorizable; individual title buttons copy
+newline-separated titles while whole-table exports preserve spreadsheet columns.
 Summary refreshes update existing widgets in place; copy callbacks compute the
 current value. Fixed grid rows/columns and bounded title panels prevent controls
 from moving. The floating preview must fully hide and clear its text.

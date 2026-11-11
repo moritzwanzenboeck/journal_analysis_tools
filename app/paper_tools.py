@@ -14,7 +14,7 @@ import tempfile
 
 PAPER_CATEGORIES = (
     "Introduction", "Literature Review", "Theory", "Data", "Methods",
-    "Results", "Discussion", "Conclusion",
+    "Results", "Discussion", "Conclusion", "Not categorizable",
 )
 PAPER_UNASSIGNED = "Unassigned"
 PAPER_EXCLUDED = "Exclude from summary"

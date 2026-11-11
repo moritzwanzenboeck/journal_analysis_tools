@@ -117,7 +117,7 @@ Heading words are included by default and can be switched off; paragraph counts
 use body text only. Top-level titles appear as context alongside subsections in
 the summary even if the parent belongs to another category. Repeated context
 titles do not add words or paragraphs. Unassigned units need review; excluded
-units deliberately contribute no category totals. The eight summary rows remain
+units deliberately contribute no category totals. The nine summary rows remain
 fixed even when a category is empty. Copy buttons read current values.
 
 Editing the cleaned text or outline invalidates the displayed categorization
@@ -162,3 +162,12 @@ replacement checkbox is enabled. A section's **Show text** opens a floating
 preview; toggling it or **Hide text** removes the entire preview and clears its
 text. Summary cells keep fixed sizes, long title lists scroll vertically inside
 them, and narrow windows use one outer horizontal scrollbar.
+
+The final normal category, **Not categorizable**, includes its words, paragraphs
+and titles in the summary like any other category. **Unassigned** triggers a
+completion warning and highlights the corresponding section/subsection rows;
+**Exclude from summary** is an explicit exclusion and does not trigger a warning.
+Empty categories are valid. Highlights and the warning update in place when
+labels change, including parent assignments and reloaded JSON. Individual title
+buttons copy newline-separated titles. The whole-table Excel export retains
+semicolon-separated lists within each tab-separated cell.

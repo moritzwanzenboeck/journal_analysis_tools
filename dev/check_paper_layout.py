@@ -73,15 +73,28 @@ def main():
                     return Array.from(grid.querySelectorAll('button')).map(e=>{const b=e.getBoundingClientRect();return {x:b.x-r.x,y:b.y-r.y,w:b.width,h:b.height}})
                 }'''
                 before=page.evaluate(metrics)
+                original_top=grid.evaluate("e=>e.offsetTop")
+                assert page.locator('.paper-section-row.paper-unassigned').count()==15
                 data_row=page.locator('.paper-section-row').filter(has_text='2. Data').first
                 data_row.locator('select').select_option(label='Data')
                 data_row.get_by_role('button',name='Apply to subsections',exact=True).click()
                 page.wait_for_function("document.querySelector('.paper-summary-grid').textContent.includes('VeryLongHeadingWord')")
                 after=page.evaluate(metrics)
-                assert len(before)==32 and len(after)==32
+                assert len(before)==36 and len(after)==36
                 assert all(abs(a[k]-b[k])<0.6 for a,b in zip(before,after) for k in ('x','y','w','h')),(before,after)
                 overflow=grid.locator('.paper-summary-cell,.paper-summary-content').evaluate_all("es=>es.filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({width:e.clientWidth,scroll:e.scrollWidth,cls:e.className}))")
                 assert not overflow,overflow
+                assert page.locator('.paper-section-row.paper-unassigned').count()==2
+                warning=page.locator('.paper-completion-warning')
+                assert '2 section(s)' in warning.inner_text()
+                intro=page.locator('.paper-section-row').filter(has_text='1. Introduction').first
+                intro.locator('select').select_option(label='Not categorizable')
+                result=page.locator('.paper-section-row').filter(has_text='3. Results').first
+                result.locator('select').select_option(label='Exclude from summary')
+                page.wait_for_function("document.querySelectorAll('.paper-section-row.paper-unassigned').length===0")
+                assert 'All sections have been categorized' in warning.inner_text()
+                assert grid.evaluate("e=>e.offsetTop")==original_top
+                assert page.evaluate(metrics)==after
                 # Show/hide is a floating inspector; it must not move any table button.
                 data_row.get_by_role('button',name='Show text',exact=True).click()
                 panel=page.locator('.paper-preview-panel');panel.wait_for(state='visible')
@@ -99,7 +112,7 @@ def main():
                 grid.screenshot(path=str(stage/'fixed-summary.png'))
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).is_disabled()
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).input_value()==str(project/'paper_categorizations')
-                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder']}))
+                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder']}))
                 print('Browser layout checks passed.'+(' Artifacts: '+str(stage) if args.artifacts else ''))
                 browser.close()
         finally:
