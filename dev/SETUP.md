@@ -58,6 +58,28 @@ With native Python and dependencies, Apple Silicon does not need Rosetta.
 | The app fails after the tools folder was moved | Keep the app beside `notebook_launcher.py` and `app/`, or rebuild it for the new folder. |
 | macOS blocks the app | For an app you trust, use the approval offered in **System Settings → Privacy & Security**, following your organisation's policy. |
 
+### Python reports `OSError: [Errno 45] Operation not supported` on a Mac
+
+A mounted/shared directory can temporarily have an unavailable working-directory
+handle. Python searches that directory during imports, so even `import platform`
+can fail. VS Code's Python startup script may be the first place this appears.
+This does not mean that `platform` needs to be installed.
+
+If the Python prompt (`>>>`) is open, enter `exit()` first. Then start Python
+from a local directory:
+
+```bash
+cd /private/tmp
+python3
+```
+
+To open these tools, use **Journal Notebook Launcher.app** or the `.command`
+shortcut. The Mac shell launcher switches to `/tmp` before checking or starting
+Python. Managed Jupyter servers also start in their own local temporary folders;
+their notebook links and project destinations still point to the tools and
+projects you selected. Windows uses its normal local temporary directory for
+managed servers as well. VS Code settings and its startup script are unchanged.
+
 For a source-level environment check without opening a window:
 
 | Windows | Mac |

@@ -4,6 +4,10 @@ set -euo pipefail
 
 tools_dir="$1"
 shift
+# Finder/VS Code may inherit a stale working directory on a mounted drive.
+# Resolve a relative checkout before leaving it, then start Python locally.
+[[ "$tools_dir" = /* ]] || tools_dir="$PWD/$tools_dir"
+cd /tmp
 # Preserve the old notebook-specific script interface as a service shortcut.
 # Use positional arguments: macOS Bash 3.2 treats empty arrays as unset with -u.
 case "${1:-}" in

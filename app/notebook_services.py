@@ -110,7 +110,7 @@ class NotebookService:
             self._log = self.log_path.open('w', encoding='utf-8')
             if os.name != 'nt':
                 self.log_path.chmod(0o600)
-            self.process = subprocess.Popen(command, cwd=self.root, env=environment,
+            self.process = subprocess.Popen(command, cwd=runtime, env=environment,
                                             stdin=subprocess.DEVNULL, stdout=self._log,
                                             stderr=subprocess.STDOUT, **options)
             deadline = time.monotonic() + timeout

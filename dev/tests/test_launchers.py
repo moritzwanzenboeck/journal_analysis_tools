@@ -83,6 +83,25 @@ class LauncherTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('requirements.txt', result.stderr)
 
+    @unittest.skipUnless(os.name == 'posix' and Path('/bin/bash').exists(), 'POSIX shell required')
+    def test_python_starts_from_a_local_directory_when_checkout_is_on_a_share(self):
+        import shlex
+        with tempfile.TemporaryDirectory(prefix="journal's cwd check ä ") as temporary:
+            trace = Path(temporary) / 'working-directories.txt'
+            wrapper = Path(temporary) / 'python-wrapper'
+            wrapper.write_text('#!/bin/bash\n/bin/pwd -P >> ' + shlex.quote(str(trace)) +
+                               '\nexec ' + shlex.quote(sys.executable) + ' "$@"\n', encoding='utf-8')
+            wrapper.chmod(0o700)
+            result = subprocess.run(['/bin/bash', str(ROOT / 'start_notebook.command'), '--check'],
+                                    cwd=ROOT, capture_output=True, text=True,
+                                    env=dict(os.environ, JOURNAL_TOOLS_NO_DIALOG='1',
+                                             JOURNAL_TOOLS_PYTHON=str(wrapper)))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            directories = trace.read_text(encoding='utf-8').splitlines()
+            self.assertGreaterEqual(len(directories), 2)
+            self.assertTrue(all(Path(path) == Path('/tmp').resolve() for path in directories))
+            self.assertIn(str(ROOT / 'clean_and_count_text.ipynb'), result.stdout)
+
     def test_installer_validates_checkout_before_creating_destination(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -152,6 +171,11 @@ class ServiceTests(unittest.TestCase):
                 for service in services:
                     service.start()
                     self.assertTrue(service.running)
+                    # Server startup stays on local storage; notebook URLs still
+                    # refer to the configured checkout, including shared drives.
+                    import psutil
+                    self.assertEqual(Path(psutil.Process(service.process.pid).cwd()).resolve(),
+                                     Path(service._runtime.name).resolve())
                     self.assertNotEqual(service.port, preferred_port)
                     address = urlparse(service.url)
                     self.assertEqual(address.hostname, '127.0.0.1')
