@@ -78,3 +78,44 @@ rules. Keep programming details out of the main user guide.
 
 Generated executables, application bundles, virtual environments, logs and Python caches are
 ignored by Git. `logs/` keeps any local diagnostics out of the user-facing folder.
+
+## Prepare a release with compiled apps
+
+`dev/package_release.py` builds a portable native launcher and packages it with
+an explicit whitelist of runtime/notebook files. Saved notebook outputs and
+widget state are stripped from the copy. No venv, settings, project output or
+logs are included. Python and Jupyter remain one-time prerequisites.
+
+```bash
+python dev/package_release.py --version v1.1.0 --output dist
+```
+
+Run this separately on Windows x86_64, Intel macOS and Apple Silicon macOS.
+The script creates an OS/architecture-specific ZIP and `.zip.sha256` checksum,
+then extracts and moves the ZIP, creates a temporary environment and checks native
+startup. Mac app signatures and executable modes survive ZIP extraction. Windows
+checks run the compiled GUI executable. Portable builds omit checkout and Python
+fallback paths from the build machine; normal `--destination` builds retain
+those fallbacks for a locally installed app.
+
+For routine releases, commit release notes in `dev/releases/<tag>.md`, then push
+a version tag:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+`.github/workflows/release.yml` calls the compatibility workflow for all six
+Windows/Intel/Apple Silicon and Python 3.10/3.14 combinations. The three Python
+3.14 jobs also build and verify platform ZIPs and upload them as workflow
+artifacts. Publication waits for every matrix job to pass, downloads the three
+native packages, verifies their checksums and commit metadata, uploads all six
+files to a draft GitHub release and only then publishes it. The built-in
+`GITHUB_TOKEN` supplies release access; no personal token is stored in the repo.
+Published versions are never overwritten. Use a new tag for another release.
+
+A workflow or local Mac run alone does not certify Windows or Apple Silicon:
+inspect the actual release-run results. Users download the attached platform
+ZIPs under Assets, not GitHub's automatically generated Source code archives.
+They do not run a compiler or the app builder.

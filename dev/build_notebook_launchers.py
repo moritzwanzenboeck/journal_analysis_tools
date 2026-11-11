@@ -58,7 +58,7 @@ def publish_app(built, output, *, replace=False):
     shutil.rmtree(backup)
 
 
-def install_windows(root, destination, *, replace=False):
+def install_windows(root, destination, *, replace=False, portable=False):
     root = Path(root).resolve()
     destination = Path(destination).expanduser().resolve()
     output = destination / WINDOWS_APP_NAME
@@ -78,7 +78,7 @@ def install_windows(root, destination, *, replace=False):
         raise FileNotFoundError('The Windows app builder needs the .NET Framework C# compiler (csc.exe).')
     template = Path(__file__).with_name('windows_launcher.cs').read_text(encoding='utf-8')
     literal = lambda value: '@"' + str(value).replace('"', '""') + '"'
-    source = template.replace('__CHECKOUT_ROOT__', literal(root)).replace('__PYTHON_EXECUTABLE__', literal(pythonw))
+    source = template.replace('__CHECKOUT_ROOT__', literal('' if portable else root)).replace('__PYTHON_EXECUTABLE__', literal('' if portable else pythonw))
     destination.mkdir(parents=True, exist_ok=True)
     # Staging on the destination filesystem permits an atomic executable replacement.
     with tempfile.TemporaryDirectory(prefix='.journal-windows-launcher-', dir=destination) as temporary:
@@ -96,18 +96,22 @@ def applescript_string(value):
     return '"' + str(value).replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
-def launcher_source(root):
+def launcher_source(root, *, portable=False):
     return f'''on run
-  set toolsFolder to {applescript_string(root)}
+  set toolsFolder to {applescript_string('' if portable else root)}
   set appFolder to do shell script "/usr/bin/dirname " & quoted form of (POSIX path of (path to me))
   try
     do shell script "/usr/bin/test -f " & quoted form of (appFolder & "/notebook_launcher.py")
     set toolsFolder to appFolder
   end try
+  if toolsFolder is "" then
+    display alert "Tools folder not found" message "Extract the complete release and keep this app beside notebook_launcher.py and the app folder."
+    return
+  end if
   set logFolder to (POSIX path of (path to library folder from user domain)) & "Logs/Journal Analysis Tools"
   do shell script "/bin/mkdir -p " & quoted form of logFolder
   set logFile to logFolder & "/launcher.log"
-  set commandLine to "/usr/bin/env JOURNAL_TOOLS_BUILD_PYTHON=" & quoted form of {applescript_string(sys.executable)} & " /bin/bash " & quoted form of (toolsFolder & "/app/launch_notebook.sh") & " " & quoted form of toolsFolder
+  set commandLine to "/usr/bin/env JOURNAL_TOOLS_BUILD_PYTHON=" & quoted form of {applescript_string('' if portable else sys.executable)} & " /bin/bash " & quoted form of (toolsFolder & "/app/launch_notebook.sh") & " " & quoted form of toolsFolder
   do shell script "umask 077; /usr/bin/nohup " & commandLine & " </dev/null >>" & quoted form of logFile & " 2>&1 &"
 end run
 '''
@@ -126,7 +130,7 @@ def validate_macos_app(bundle):
         raise OSError(f'This destination cannot preserve a valid macOS app: {detail}\n{hint}')
 
 
-def install(root, destination, *, replace=False):
+def install(root, destination, *, replace=False, portable=False):
     root = Path(root).resolve()
     destination = Path(destination).expanduser().resolve()
     # Validate everything before creating anything.
@@ -143,7 +147,7 @@ def install(root, destination, *, replace=False):
     # resource-fork metadata. Keep the compiler and its working directory local.
     with tempfile.TemporaryDirectory(prefix='journal-notebook-compile-', dir='/private/tmp') as temporary:
         script = Path(temporary)/'launcher.applescript'
-        script.write_text(launcher_source(root), encoding='utf-8')
+        script.write_text(launcher_source(root, portable=portable), encoding='utf-8')
         compiled = Path(temporary) / APP_NAME
         subprocess.run(['/usr/bin/osacompile', '-o', str(compiled), str(script)],
                        cwd=temporary, check=True)
@@ -168,13 +172,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     root = Path(__file__).resolve().parent.parent
     parser.add_argument('--destination', type=Path, default=root)
+    parser.add_argument('--portable', action='store_true', help='Build for a release: locate tools and Python on the recipient computer')
     parser.add_argument('--replace', action='store_true', help='Rebuild and replace an existing launcher after a successful build')
     args = parser.parse_args()
     try:
         if sys.platform == 'win32':
-            install_windows(root, args.destination, replace=args.replace)
+            install_windows(root, args.destination, replace=args.replace, portable=args.portable)
         elif sys.platform == 'darwin':
-            install(root, args.destination, replace=args.replace)
+            install(root, args.destination, replace=args.replace, portable=args.portable)
         else:
             parser.error('App building is supported on Windows and macOS. Run python notebook_launcher.py on Linux.')
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:

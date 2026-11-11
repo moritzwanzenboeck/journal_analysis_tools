@@ -32,10 +32,15 @@ internal static class NotebookLauncher
         {
             string root = AppDomain.CurrentDomain.BaseDirectory;
             if (!File.Exists(Path.Combine(root, "notebook_launcher.py")))
-                root = __CHECKOUT_ROOT__;
+            {
+                string recordedRoot = __CHECKOUT_ROOT__;
+                if (String.IsNullOrEmpty(recordedRoot))
+                    throw new FileNotFoundException("Extract the complete release and keep this app beside notebook_launcher.py and the app folder.");
+                root = recordedRoot;
+            }
             string script = Path.Combine(root, "notebook_launcher.py");
             if (!File.Exists(script))
-                throw new FileNotFoundException("The notebook tools folder has moved. Rebuild this launcher.", script);
+                throw new FileNotFoundException("The notebook tools folder is unavailable. Keep the launcher beside notebook_launcher.py and the app folder.", script);
 
             string python = Environment.GetEnvironmentVariable("JOURNAL_TOOLS_PYTHON");
             if (String.IsNullOrWhiteSpace(python))
@@ -44,7 +49,7 @@ internal static class NotebookLauncher
                 if (!File.Exists(python)) python = __PYTHON_EXECUTABLE__;
             }
             if (!File.Exists(python))
-                throw new FileNotFoundException("Python was not found. Rebuild the app with the project's Python environment.", python);
+                throw new FileNotFoundException("Python was not found. Complete the one-time setup in dev/SETUP.md, or set JOURNAL_TOOLS_PYTHON to your Python executable.", python);
 
             string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                                          "Journal Analysis Tools", "Logs");

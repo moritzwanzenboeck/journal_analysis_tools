@@ -5,18 +5,24 @@ and count its words and paragraphs.
 
 ## Open the app
 
-Double-click **Journal Notebook Launcher** in the tools folder:
+Download the ZIP for your computer from [Releases](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest),
+then extract the complete folder onto a local disk. Choose a platform ZIP under
+**Assets**; the automatic **Source code** downloads do not contain compiled apps.
+Each platform ZIP includes its ready-to-open launcher, so no compilation is needed.
+
+Double-click **Journal Notebook Launcher** in the extracted tools folder:
 
 | Your computer | App to open |
 | --- | --- |
-| Windows | **Journal Notebook Launcher.exe** |
-| Mac, Intel or Apple Silicon | **Journal Notebook Launcher.app** |
+| Windows (`windows-x86_64` ZIP) | **Journal Notebook Launcher.exe** |
+| Intel Mac (`macos-x86_64` ZIP) | **Journal Notebook Launcher.app** |
+| Apple Silicon Mac (`macos-arm64` ZIP) | **Journal Notebook Launcher.app** |
 
 On a new computer, complete the [one-time setup](dev/SETUP.md) first, or ask the
-person providing these tools to do it. After setup, you can use the app without
-typing commands. Keep the tools folder together. If the tools are on a shared
-or external drive, follow the setup instructions for installing the Mac launcher
-in your local Applications folder.
+person providing these tools to do it. Python and Jupyter are still required;
+the compiled launcher does not bundle them. After setup, you can use the app
+without typing commands. Keep the complete extracted tools folder together on
+a local disk. Your analysis projects and output can be saved on a shared drive.
 
 1. Click **Start** next to the tool you want to use.
 2. Its notebook opens in your web browser. In the notebook's **Run** menu, choose
