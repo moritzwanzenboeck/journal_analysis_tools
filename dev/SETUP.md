@@ -46,6 +46,25 @@ original tools folder. The `.command` shortcut opens the same launcher.
 
 With native Python and dependencies, Apple Silicon does not need Rosetta.
 
+### Tools stored on a shared or external drive
+
+Some shared/external filesystems add Finder metadata or strip executable
+permissions from `.app` bundles. Keep the notebooks there, but install the Mac
+launcher on your local disk:
+
+```bash
+.venv/bin/python dev/build_notebook_launchers.py --destination "$HOME/Applications" --replace
+```
+
+Open **Journal Notebook Launcher.app** in your home folder's **Applications**
+folder. It still opens the notebooks in the original tools folder.
+
+This also resolves `resource fork, Finder information, or similar detritus not
+allowed` / `osacompile ... (-4960)` when the build destination is on a shared
+drive. The Mac builder compiles and signs in local temporary storage, validates
+its destination copy, and preserves the previous app if any step fails. It does
+not remove extended attributes from your tools or project folders.
+
 ## Rebuild an existing launcher
 
 Close the launcher, then run the builder with `--replace`:

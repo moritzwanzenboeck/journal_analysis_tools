@@ -165,6 +165,52 @@ class LauncherTests(unittest.TestCase):
             self.assertTrue((output / 'new.txt').is_file())
 
     @unittest.skipUnless(sys.platform == 'darwin', 'AppleScript apps are macOS only')
+    def test_mac_compiler_stays_off_destination_and_installed_signature_is_valid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / 'shared destination'
+            original_run = subprocess.run
+            compiled_paths = []
+
+            def record_compilation(command, **options):
+                if command[0] == '/usr/bin/osacompile':
+                    compiled = Path(command[2])
+                    self.assertNotIn(destination, compiled.parents)
+                    self.assertEqual(Path(options['cwd']), compiled.parent)
+                    compiled_paths.append(compiled)
+                return original_run(command, **options)
+
+            with patch('dev.build_notebook_launchers.subprocess.run', side_effect=record_compilation):
+                output = install(ROOT, destination)
+            self.assertEqual(len(compiled_paths), 1)
+            self.assertFalse(compiled_paths[0].exists(), 'Local compilation staging must be cleaned up')
+            self.assertFalse(list(destination.glob('.journal-notebook-launcher-*')))
+            subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(output)], check=True)
+            icon = ROOT / 'app' / 'assets' / 'app.icns'
+            if icon.is_file():
+                self.assertEqual((output / 'Contents/Resources/applet.icns').read_bytes(), icon.read_bytes())
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'AppleScript apps are macOS only')
+    def test_mac_destination_that_strips_permissions_keeps_previous_app(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            output = destination / APP_NAME
+            output.mkdir()
+            marker = output / 'keep.txt'
+            marker.write_text('Previous launcher', encoding='utf-8')
+            original_access = os.access
+
+            def destination_access(path, mode, **options):
+                if mode == os.X_OK and '.journal-notebook-launcher-' in str(path):
+                    return False
+                return original_access(path, mode, **options)
+
+            with patch('dev.build_notebook_launchers.os.access', side_effect=destination_access):
+                with self.assertRaisesRegex(OSError, 'local disk'):
+                    install(ROOT, destination, replace=True)
+            self.assertEqual(marker.read_text(encoding='utf-8'), 'Previous launcher')
+            self.assertFalse(list(destination.glob('.journal-notebook-launcher-*')))
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'AppleScript apps are macOS only')
     def test_installs_one_finder_app_with_spaces_quotes_and_unicode_in_path(self):
         import shutil
         with tempfile.TemporaryDirectory() as temporary:

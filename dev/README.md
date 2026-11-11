@@ -62,10 +62,15 @@ entry point to the shared shell/Python launcher, using the same GUI and service
 controller as Windows. Shell files use LF endings and Bash 3.2-compatible syntax.
 Explicit `JOURNAL_TOOLS_PYTHON` choices are authoritative on both platforms.
 The builder refuses to overwrite an existing app unless `--replace` is supplied.
-Both platforms compile into a staging directory first, preserving the previous
-app on build failure. Windows publishes the new executable with an atomic
-replacement; macOS keeps a backup bundle until the new bundle is installed and
-restores it if publication fails. Close a running launcher before rebuilding.
+Both platforms preserve the previous app on build failure. Windows compiles on
+the destination filesystem and publishes the new executable with an atomic
+replacement. macOS compiles in `/private/tmp`, sets the icon, then ad-hoc signs
+the completed bundle. It copies into a staging folder on the destination
+filesystem and validates executable permissions and the signature before
+publication. A backup bundle permits rollback on publication failure. Close a
+running launcher before rebuilding. For a shared/external drive that cannot
+store executable signed apps, select a local destination such as `~/Applications`;
+the notebooks remain in the tools folder.
 
 See [one-time setup](SETUP.md) for the matched OS setup instructions and log
 locations, and [analysis reference](analysis_reference.md) for export and counting

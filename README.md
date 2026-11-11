@@ -14,7 +14,9 @@ Double-click **Journal Notebook Launcher** in the tools folder:
 
 On a new computer, complete the [one-time setup](dev/SETUP.md) first, or ask the
 person providing these tools to do it. After setup, you can use the app without
-typing commands. Keep the tools folder together.
+typing commands. Keep the tools folder together. If the tools are on a shared
+or external drive, follow the setup instructions for installing the Mac launcher
+in your local Applications folder.
 
 1. Click **Start** next to the tool you want to use.
 2. Its notebook opens in your web browser. In the notebook's **Run** menu, choose

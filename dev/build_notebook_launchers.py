@@ -113,6 +113,19 @@ end run
 '''
 
 
+def validate_macos_app(bundle):
+    """Reject a destination that strips executable bits or adds signing metadata."""
+    hint = ('Install the launcher on a local disk instead: '
+            '--destination "~/Applications" --replace. The notebooks can stay in the shared folder.')
+    if not os.access(bundle / 'Contents' / 'MacOS' / 'applet', os.X_OK):
+        raise OSError(f'This destination does not preserve macOS app executable permissions. {hint}')
+    result = subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(bundle)],
+                            capture_output=True, text=True)
+    if result.returncode:
+        detail = result.stderr.strip() or 'App signature validation failed.'
+        raise OSError(f'This destination cannot preserve a valid macOS app: {detail}\n{hint}')
+
+
 def install(root, destination, *, replace=False):
     root = Path(root).resolve()
     destination = Path(destination).expanduser().resolve()
@@ -126,15 +139,27 @@ def install(root, destination, *, replace=False):
     if output.exists() and not replace:
         raise existing_app_error(output)
     destination.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='.journal-notebook-launcher-', dir=destination) as temporary:
+    # Compiling/signing on SMB/FAT-style destinations can introduce Finder or
+    # resource-fork metadata. Keep the compiler and its working directory local.
+    with tempfile.TemporaryDirectory(prefix='journal-notebook-compile-', dir='/private/tmp') as temporary:
         script = Path(temporary)/'launcher.applescript'
         script.write_text(launcher_source(root), encoding='utf-8')
-        built = Path(temporary) / APP_NAME
-        subprocess.run(['/usr/bin/osacompile', '-o', str(built), str(script)], check=True)
+        compiled = Path(temporary) / APP_NAME
+        subprocess.run(['/usr/bin/osacompile', '-o', str(compiled), str(script)],
+                       cwd=temporary, check=True)
         icon = root/'app'/'assets'/'app.icns'
         if icon.is_file():
-            shutil.copyfile(icon, built/'Contents'/'Resources'/'applet.icns')
-        publish_app(built, output, replace=replace)
+            shutil.copyfile(icon, compiled/'Contents'/'Resources'/'applet.icns')
+        # The icon changes bundle resources, so sign after all resources are set.
+        subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(compiled)],
+                       check=True, capture_output=True, text=True)
+        # Publication still stages on the destination filesystem, preserving the
+        # existing rollback/rename guarantees even when compilation was elsewhere.
+        with tempfile.TemporaryDirectory(prefix='.journal-notebook-launcher-', dir=destination) as publication:
+            built = Path(publication) / APP_NAME
+            shutil.copytree(compiled, built, copy_function=shutil.copy)
+            validate_macos_app(built)
+            publish_app(built, output, replace=replace)
     print('Installed Finder launcher:', output)
     return output
 
