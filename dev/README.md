@@ -61,7 +61,11 @@ On macOS it creates `Journal Notebook Launcher.app`. This is an AppleScript
 entry point to the shared shell/Python launcher, using the same GUI and service
 controller as Windows. Shell files use LF endings and Bash 3.2-compatible syntax.
 Explicit `JOURNAL_TOOLS_PYTHON` choices are authoritative on both platforms.
-The builder refuses to overwrite an existing app on either platform.
+The builder refuses to overwrite an existing app unless `--replace` is supplied.
+Both platforms compile into a staging directory first, preserving the previous
+app on build failure. Windows publishes the new executable with an atomic
+replacement; macOS keeps a backup bundle until the new bundle is installed and
+restores it if publication fails. Close a running launcher before rebuilding.
 
 See [one-time setup](SETUP.md) for the matched OS setup instructions and log
 locations, and [analysis reference](analysis_reference.md) for export and counting

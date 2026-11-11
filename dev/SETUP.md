@@ -46,12 +46,24 @@ original tools folder. The `.command` shortcut opens the same launcher.
 
 With native Python and dependencies, Apple Silicon does not need Rosetta.
 
+## Rebuild an existing launcher
+
+Close the launcher, then run the builder with `--replace`:
+
+| Windows | Mac |
+| --- | --- |
+| `.venv\Scripts\python.exe dev/build_notebook_launchers.py --replace` | `.venv/bin/python dev/build_notebook_launchers.py --replace` |
+
+The existing app stays in place while the replacement is built. If compilation
+fails, the previous app is kept. An open Windows launcher must be closed before
+its executable can be replaced.
+
 ## If something does not work
 
 | Problem | What to check |
 | --- | --- |
 | No launcher app in the folder | Complete the setup steps for your operating system. |
-| The builder says an app already exists | Move the existing launcher out of the folder before rebuilding. Other files can stay in place. |
+| The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
 | The app cannot find Python or a required package | Reinstall `requirements.txt` using the `.venv` Python command above. |
 | The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
 | The copy button cannot access the clipboard | Select the displayed count and copy it manually. The notebook must run on your own computer to use its clipboard. |

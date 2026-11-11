@@ -14,7 +14,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlparse, parse_qs
 
-from dev.build_notebook_launchers import APP_NAME, WINDOWS_APP_NAME, install, install_windows
+from dev.build_notebook_launchers import APP_NAME, WINDOWS_APP_NAME, install, install_windows, publish_app
 from app.notebook_services import NotebookService, SERVICES
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +52,24 @@ class LauncherTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 install_windows(ROOT, destination)
             self.assertEqual(executable.read_bytes(), original)
+
+            original_run = subprocess.run
+
+            def fail_compilation(command, **options):
+                if str(command[0]).lower().endswith('csc.exe'):
+                    raise subprocess.CalledProcessError(1, command)
+                return original_run(command, **options)
+
+            with patch('dev.build_notebook_launchers.subprocess.run', side_effect=fail_compilation):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    install_windows(ROOT, destination, replace=True)
+            self.assertEqual(executable.read_bytes(), original)
+            executable.write_bytes(b'Previous launcher')
+            install_windows(ROOT, destination, replace=True)
+            self.assertTrue(executable.read_bytes().startswith(b'MZ'))
+            result = subprocess.run([str(executable), '--check'], cwd=destination,
+                                    capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0)
 
             # An invalid explicit Python choice must fail, rather than silently
             # use a different environment. This is also checked by the Mac script.
@@ -120,6 +138,32 @@ class LauncherTests(unittest.TestCase):
                 install(ROOT, Path(temporary))
             self.assertEqual(marker.read_text(encoding='utf-8'), 'Existing app')
 
+    def test_bundle_replacement_restores_previous_app_on_publication_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            output = destination / APP_NAME
+            output.mkdir()
+            (output / 'previous.txt').write_text('Previous launcher', encoding='utf-8')
+            built = destination / 'staged.app'
+            built.mkdir()
+            (built / 'new.txt').write_text('New launcher', encoding='utf-8')
+            original_rename = Path.rename
+
+            def fail_publication(source, target):
+                if source == built:
+                    raise OSError('Simulated publication failure')
+                return original_rename(source, target)
+
+            with patch.object(Path, 'rename', autospec=True, side_effect=fail_publication):
+                with self.assertRaisesRegex(OSError, 'publication failure'):
+                    publish_app(built, output, replace=True)
+            self.assertEqual((output / 'previous.txt').read_text(encoding='utf-8'), 'Previous launcher')
+            self.assertTrue((built / 'new.txt').is_file())
+            self.assertFalse(list(destination.glob('.*.previous-*')))
+            publish_app(built, output, replace=True)
+            self.assertFalse((output / 'previous.txt').exists())
+            self.assertTrue((output / 'new.txt').is_file())
+
     @unittest.skipUnless(sys.platform == 'darwin', 'AppleScript apps are macOS only')
     def test_installs_one_finder_app_with_spaces_quotes_and_unicode_in_path(self):
         import shutil
@@ -134,6 +178,10 @@ class LauncherTests(unittest.TestCase):
             destination = Path(temporary) / 'Applications'
             install(root, destination)
             self.assertEqual([path.name for path in destination.iterdir()], [APP_NAME])
+            self.assertTrue((destination / APP_NAME / 'Contents' / 'MacOS' / 'applet').is_file())
+            (destination / APP_NAME / 'obsolete.txt').touch()
+            install(root, destination, replace=True)
+            self.assertFalse((destination / APP_NAME / 'obsolete.txt').exists())
             self.assertTrue((destination / APP_NAME / 'Contents' / 'MacOS' / 'applet').is_file())
 
 
