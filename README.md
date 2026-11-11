@@ -82,10 +82,8 @@ clean-and-count workflow remains in **Clean & count (original)**.
    assigns a parent and its descendants; individual labels can then be changed.
    Use **Not categorizable** for parts that should be counted but do not fit the
    other categories. Leave unfinished labels **Unassigned**, or choose **Exclude from summary**.
-   The selection area shows progress such as **1/7 sections assigned**, with a
-   green checkmark when complete. A warning appears there only after copying
-   while assignments are incomplete. Unassigned rows remain highlighted; empty
-   categories are allowed.
+   The summary warns about unassigned parts and highlights their rows above;
+   empty categories are allowed.
 6. Use the summary's copy buttons for section titles, subsection titles, words
    and paragraphs, or copy the whole table into Excel. Title buttons copy one
    title per line. Title lists scroll within

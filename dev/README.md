@@ -41,11 +41,8 @@ model, including project discovery, sampled DOI metadata and JSON persistence.
 `dev/tests/test_paper_categorization.py` checks model parity, count boundaries,
 label changes, roundtrip/rollback, project selection and the fixed save-folder
 invariant. Notebook callbacks are tested with temporary synthetic projects.
-A compact progress indicator in the selection area tracks assigned sections and
-shows a green checkmark when complete. An incomplete-assignment warning appears
-only after a full-paper copy button is pressed, including clipboard fallback.
-Completion, loading another paper and fresh cleanup reset this warning history.
-Progress and warnings share a fixed-height slot; row highlights update in place.
+Completion warnings track unassigned sections, with row highlights updated in place.
+The warning uses a fixed-height slot, so clearing it does not shift the summary.
 The final counted category is Not categorizable; individual title buttons copy
 newline-separated titles while whole-table exports preserve spreadsheet columns.
 Summary refreshes update existing widgets in place; copy callbacks compute the

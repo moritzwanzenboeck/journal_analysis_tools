@@ -25,12 +25,7 @@ def main():
         # Copy only the notebook: the browser may autosave outputs in this scratch copy.
         root = Path(temporary) / 'tools'
         root.mkdir()
-        notebook=json.loads((ROOT / 'clean_and_count_text.ipynb').read_text(encoding='utf-8'))
-        # Exercise copy-button clicks without touching the system clipboard.
-        notebook['cells'].insert(-1, {'cell_type':'code','id':'browser-clipboard-stub',
-            'metadata':{},'execution_count':None,'outputs':[],
-            'source':['shutil.which = lambda _command: None\n']})
-        (root / 'clean_and_count_text.ipynb').write_text(json.dumps(notebook),encoding='utf-8')
+        (root / 'clean_and_count_text.ipynb').write_bytes((ROOT / 'clean_and_count_text.ipynb').read_bytes())
         project=stage/'browser-project'
         (project/'output').mkdir(parents=True,exist_ok=True)
         (project/'project.json').write_text(json.dumps({'schema_version':1,'journal':'Browser Test Journal','sample_export':'output/random10.csv'}))
@@ -77,7 +72,6 @@ def main():
                     const grid=document.querySelector('.paper-summary-grid'), r=grid.getBoundingClientRect();
                     return Array.from(grid.querySelectorAll('button')).map(e=>{const b=e.getBoundingClientRect();return {x:b.x-r.x,y:b.y-r.y,w:b.width,h:b.height}})
                 }'''
-                page.wait_for_function("document.querySelectorAll('.paper-section-row.paper-unassigned').length===15")
                 before=page.evaluate(metrics)
                 original_top=grid.evaluate("e=>e.offsetTop")
                 assert page.locator('.paper-section-row.paper-unassigned').count()==15
@@ -90,25 +84,15 @@ def main():
                 assert all(abs(a[k]-b[k])<0.6 for a,b in zip(before,after) for k in ('x','y','w','h')),(before,after)
                 overflow=grid.locator('.paper-summary-cell,.paper-summary-content').evaluate_all("es=>es.filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({width:e.clientWidth,scroll:e.scrollWidth,cls:e.className}))")
                 assert not overflow,overflow
-                page.wait_for_function("document.querySelector('.paper-assignment-progress').textContent.includes('13/15 sections assigned')")
                 assert page.locator('.paper-section-row.paper-unassigned').count()==2
-                progress=page.locator('.paper-assignment-progress')
-                assert '13/15 sections assigned' in progress.inner_text()
-                assert progress.get_by_role('alert').count()==0
-                grid.get_by_role('button',name='Copy count',exact=True).first.click()
-                progress.get_by_role('alert').wait_for(state='attached')
-                assert 'categories incomplete' in progress.inner_text()
-                assert grid.evaluate("e=>e.offsetTop")==original_top
-                assert page.evaluate(metrics)==after
+                warning=page.locator('.paper-completion-warning')
+                assert '2 section(s)' in warning.inner_text()
                 intro=page.locator('.paper-section-row').filter(has_text='1. Introduction').first
                 intro.locator('select').select_option(label='Not categorizable')
                 result=page.locator('.paper-section-row').filter(has_text='3. Results').first
                 result.locator('select').select_option(label='Exclude from summary')
                 page.wait_for_function("document.querySelectorAll('.paper-section-row.paper-unassigned').length===0")
-                page.wait_for_function("document.querySelector('.paper-assignment-progress').textContent.includes('15/15 sections assigned')")
-                assert '15/15 sections assigned' in progress.inner_text()
-                assert progress.get_by_label('Complete',exact=True).inner_text()=='✓'
-                assert progress.get_by_role('alert').count()==0
+                assert 'All sections have been categorized' in warning.inner_text()
                 assert grid.evaluate("e=>e.offsetTop")==original_top
                 assert page.evaluate(metrics)==after
                 # Show/hide is a floating inspector; it must not move any table button.
@@ -128,7 +112,7 @@ def main():
                 grid.screenshot(path=str(stage/'fixed-summary.png'))
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).is_disabled()
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).input_value()==str(project/'paper_categorizations')
-                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','assignment progress and highlights','copy-triggered warning','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder']}))
+                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder']}))
                 print('Browser layout checks passed.'+(' Artifacts: '+str(stage) if args.artifacts else ''))
                 browser.close()
         finally:
