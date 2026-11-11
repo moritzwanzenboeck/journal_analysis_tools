@@ -1,5 +1,7 @@
 """Check the shared launcher and real Jupyter process/kernel lifecycle offline."""
 from dataclasses import replace
+from contextlib import redirect_stderr
+import io
 from pathlib import Path
 import os
 import socket
@@ -8,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlparse, parse_qs
 
@@ -18,6 +21,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class LauncherTests(unittest.TestCase):
+    def test_preflight_reports_a_tk_runtime_mismatch(self):
+        import tkinter as tk
+        from app.launcher import main
+
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', ['notebook_launcher.py', '--check']), \
+                patch.object(tk, 'Tk', side_effect=RuntimeError('tk.h version (8.5) does not match libtk.a version (8.6)')), \
+                redirect_stderr(errors), self.assertRaises(SystemExit) as stopped:
+            main()
+        self.assertEqual(stopped.exception.code, 1)
+        self.assertIn('Tk could not initialise', errors.getvalue())
+        self.assertIn('matching Tcl/Tk libraries', errors.getvalue())
+
     @unittest.skipUnless(sys.platform == 'win32', 'Windows app compiler required')
     def test_windows_app_compiles_and_launches_real_python_without_a_console(self):
         with tempfile.TemporaryDirectory(prefix="journal's app ä ") as temporary:

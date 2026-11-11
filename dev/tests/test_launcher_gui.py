@@ -55,6 +55,7 @@ class LauncherWindowTests(unittest.TestCase):
                         labels = [item for item in items if isinstance(item, ttk.Label)]
                         messages = [text(item) for item in labels]
                         kills = [item for item in buttons if text(item) == 'Kill kernels']
+                        links = [item for item in buttons if text(item) == 'Open notebook']
                         if stage == 0:
                             for button in buttons:
                                 if text(button) == 'Start':
@@ -67,9 +68,10 @@ class LauncherWindowTests(unittest.TestCase):
                                 self.assertIn(instance.url, addresses)
                             self.assertNotEqual(managed[0].port, managed[1].port)
                             managed[0].request('api/kernels', 'POST')
-                            for label in labels:
-                                if text(label) == 'Open notebook':
-                                    label.event_generate('<Button-1>')
+                            self.assertEqual(len(links), 2)
+                            for button in links:
+                                self.assertFalse(button.instate(['disabled']))
+                                button.invoke()
                             stage = 2
                         elif stage == 2 and browser.call_count == 4 and all(not button.instate(['disabled']) for button in kills):
                             for button in kills:
@@ -91,7 +93,12 @@ class LauncherWindowTests(unittest.TestCase):
                         fail(error)
 
                 window.after(200, tick)
-                window.after(90000, lambda: fail(TimeoutError(f'Window test timed out at stage {stage}')))
+                def timed_out():
+                    details = [(item.spec.key, item.running, item.port) for item in managed]
+                    fail(TimeoutError(f'Window test timed out at stage {stage}; '
+                                      f'browser calls={browser.call_count}; services={details}'))
+
+                window.after(90000, timed_out)
                 try:
                     launcher.main()
                 finally:

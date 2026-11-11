@@ -30,6 +30,22 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             dev/requirements.txt
+      - name: Use Python.org Tcl/Tk for the Intel Mac Python 3.10 job
+        if: matrix.os == 'macos-15-intel' && matrix.python == '3.10'
+        shell: bash
+        run: |
+          # The hosted 3.10 build mixes Tk 8.5 headers with an 8.6 runtime.
+          # The last Python.org 3.10 installer bundles a matching Tcl/Tk pair.
+          package="$RUNNER_TEMP/python-3.10.11-macos11.pkg"
+          curl --fail --location --retry 3 \
+            https://www.python.org/ftp/python/3.10.11/python-3.10.11-macos11.pkg \
+            --output "$package"
+          pkgutil --check-signature "$package"
+          sudo installer -pkg "$package" -target /
+          python_bin="$RUNNER_TEMP/journal-tools-python/bin"
+          mkdir -p "$python_bin"
+          ln -s /Library/Frameworks/Python.framework/Versions/3.10/bin/python3.10 "$python_bin/python"
+          echo "$python_bin" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: python -m pip install -r dev/requirements.txt
       - name: Check launcher environment

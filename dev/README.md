@@ -15,11 +15,19 @@ macOS it closes through Command-Q's handler. No external network is needed.
 
 The compatibility workflow runs this same suite on Windows, Intel macOS
 (`macos-15-intel`) and Apple Silicon macOS (`macos-15`), with Python 3.10 and 3.14.
+The Intel/Python 3.10 job uses the Python.org 3.10.11 universal2 installer to avoid
+the hosted toolcache's mismatched Tk 8.5 headers/8.6 runtime. This pinned legacy
+runtime tests the supported 3.10 baseline; use a current Python release for new
+installations. Other matrix jobs retain their `setup-python` interpreter.
 Native Windows app compilation/startup and Mac app compilation run on their
 respective hosts. Native clipboard roundtrips run only when
 `JOURNAL_TOOLS_TEST_CLIPBOARD=1`, as configured on the CI desktops, to avoid
 changing a developer's clipboard during ordinary local checks. Clipboard routing
 and error handling are tested locally without modifying the clipboard.
+The GUI driver invokes the same native buttons used by mouse and keyboard users;
+it does not send synthetic mouse events to a withdrawn window, which macOS can
+discard. The launcher's `--check` also initialises a hidden Tk root to detect
+runtime/library mismatches before the tests run.
 
 A workflow definition is not evidence of a successful Mac run: check all three
 platform results before distributing a release. Windows-only local tests do not

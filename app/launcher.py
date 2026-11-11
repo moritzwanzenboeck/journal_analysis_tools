@@ -31,6 +31,12 @@ def main():
                              f'{error}\n\nInstall requirements.txt in this Python environment.')
         return
     if args.check:
+        try:
+            probe = tk.Tk()
+            probe.withdraw()
+            probe.destroy()
+        except (tk.TclError, RuntimeError) as error:
+            parser.exit(1, f'Tk could not initialise: {error}\nUse a Python installation with matching Tcl/Tk libraries.\n')
         print('Python, Tk, Jupyter Notebook, ipykernel and ipywidgets are available.')
         for spec in SERVICES:
             print(f'{spec.title}: {root / spec.notebook}')
@@ -95,9 +101,7 @@ def main():
             row[name].configure(state='normal' if not busy and service.running else 'disabled')
         row['kill'].configure(state='normal' if not busy and service.running and service.port else 'disabled')
         row['port'].set(f'Port: {service.port}' if service.port else 'Port: —')
-        row['link'].configure(text='Open notebook' if service.url else 'Start to get a link',
-                              foreground='#145ea8' if service.url else '#666666',
-                              cursor='hand2' if service.url else '')
+        row['link'].configure(state='normal' if not busy and service.url else 'disabled')
         address = service.url or ''
         if row['url'].get() != address:
             row['url'].set(address)
@@ -117,9 +121,9 @@ def main():
                 ('force', 'Force stop', lambda key=spec.key: stop(key, True)))):
             row[name] = ttk.Button(box, text=label, command=command)
             row[name].grid(row=1, column=column, sticky='w', pady=6, padx=(0, 6))
-        row['link'] = ttk.Label(box)
+        row['link'] = ttk.Button(box, text='Open notebook', cursor='hand2',
+                                 command=lambda key=spec.key: open_notebook(key))
         row['link'].grid(row=2, column=0, sticky='w', padx=(0, 10))
-        row['link'].bind('<Button-1>', lambda event, key=spec.key: open_notebook(key) if not rows[key]['busy'] and not closing else None)
         ttk.Entry(box, textvariable=row['url'], state='readonly').grid(row=2, column=1, columnspan=4, sticky='ew')
         box.columnconfigure(4, weight=1)
         render(spec.key)
