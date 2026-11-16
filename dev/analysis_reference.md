@@ -214,3 +214,7 @@ Empty categories are valid. Highlights and the warning update in place when
 labels change, including parent assignments and reloaded JSON. Individual title
 buttons copy newline-separated titles. The whole-table Excel export retains
 semicolon-separated lists within each tab-separated cell.
+
+DOI search results and selected-paper cards show all available author names,
+including organisation authors. Names are read from the preloaded record; no
+extra lookup is required. Missing author metadata displays **Not available**.

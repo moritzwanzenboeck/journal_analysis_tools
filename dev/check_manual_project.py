@@ -78,10 +78,11 @@ tools.get_json = _offline_get_json
                 result=page.locator('.manual-doi-result');result.wait_for(state='visible')
                 assert result.locator('strong').inner_text()=='First selected paper'
                 assert result.locator('strong').evaluate('e=>Number(getComputedStyle(e).fontWeight)')>=600
-                for value in ('First Journal','2020','10.1234/first'):assert value in result.inner_text()
+                for value in ('Authors:','Example Author','First Journal','2020','10.1234/first'):assert value in result.inner_text()
                 result.screenshot(path=str(stage/'doi-search-result.png'))
                 result.get_by_role('button',name='Add paper',exact=True).click()
                 page.wait_for_function("document.querySelectorAll('.manual-selected-paper').length===1")
+                assert 'Example Author' in page.locator('.manual-selected-paper').first.inner_text()
                 page.get_by_role('tab',name='Paste DOI list',exact=True).click()
                 bulk=page.get_by_role('textbox',name='DOI list:',exact=True)
                 bulk.fill('10.1234/first\nhttps://doi.org/10.1234/second\nbad entry')

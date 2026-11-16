@@ -53,7 +53,7 @@ an internet connection.
 2. Use either entry method:
    - **Search one DOI:** paste a DOI or full `https://doi.org/...` URL and press
      **Enter** (or **Search DOI**). Review the dropdown result, which shows a bold
-     title plus journal, year and DOI, then click **Add paper**. Repeat as needed.
+     title plus authors, journal, year and DOI, then click **Add paper**. Repeat as needed.
    - **Paste DOI list:** paste one DOI or DOI URL per line and click **Check and
      add DOI list**. Correct any listed errors and check again. A list is added
      only when all its entries validate; repeated DOIs are included once.

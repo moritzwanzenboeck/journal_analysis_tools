@@ -193,7 +193,7 @@ class ManualFormTests(unittest.TestCase):
             self.assertEqual(dropdown.selected_index,0)
             html=dropdown.children[0].children[0].value
             self.assertIn('<strong',html)
-            for label in ('Journal','Year','DOI','Example Journal','2026','10.1080/example.1'):
+            for label in ('Authors','René Müller','Journal','Year','DOI','Example Journal','2026','10.1080/example.1'):
                 self.assertIn(label,html)
             dropdown.children[0].children[1].click()
             self.assertEqual(len(s['manual_state']['selected']),1)
