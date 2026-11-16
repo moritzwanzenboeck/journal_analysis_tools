@@ -1,0 +1,20 @@
+{
+  "provider": "https://github.com/astral-sh/python-build-standalone",
+  "release": "20261110",
+  "python_version": "3.14.10",
+  "licenses_sha256": "e43fb936c6655d7996dba480d7ebdea492d6040ec388eb8ed9d1000f72de8cab",
+  "targets": {
+    "windows-x86_64": {
+      "archive": "cpython-3.14.10+20261110-x86_64-pc-windows-msvc-install_only.tar.gz",
+      "sha256": "b9bee0a6f590914a495a8305701951e543b4475bb620d11661b49052b990456b"
+    },
+    "macos-x86_64": {
+      "archive": "cpython-3.14.10+20261110-x86_64-apple-darwin-install_only.tar.gz",
+      "sha256": "f6c82fcf867b4aaadd373ac97699ad95fbb9c96f9ecf9b25775943aa5458b87f"
+    },
+    "macos-arm64": {
+      "archive": "cpython-3.14.10+20261110-aarch64-apple-darwin-install_only.tar.gz",
+      "sha256": "42031ed5f0d38777335252c8c77d64708c8010dd67c128246bdec25000672666"
+    }
+  }
+}

@@ -1,21 +1,31 @@
-# One-time setup and troubleshooting
+# Opening the app and troubleshooting
 
-These steps prepare the same launcher and notebook tools on Windows and macOS.
-They are needed once on each computer. If you are unfamiliar with Python or the
-terminal, ask the person providing these tools to prepare the folder for you.
+Platform release downloads include Python, Tk, Jupyter and all notebook
+packages. Windows, Intel Mac and Apple Silicon Mac users need no terminal setup.
 
-## Download a precompiled release
+## Open a self-contained release
 
 Download the ZIP for your computer from the latest GitHub release: Windows
 `windows-x86_64`, Intel Mac `macos-x86_64`, or Apple Silicon Mac `macos-arm64`.
 Extract the **whole folder** onto a local disk and keep the app beside
-`notebook_launcher.py` and `app/`. The compiled launcher is already included;
-do not run the app builder. GitHub's automatic Source code ZIPs do not include it.
+`notebook_launcher.py` and `app/`. Open **Journal Notebook Launcher.exe** on
+Windows or **Journal Notebook Launcher.app** on either Mac. Start a service,
+then choose **Run All Cells** in the notebook.
 
-Python and Jupyter are not bundled. The following one-time steps install their
-environment; they do not compile the app.
+Keep the complete folder, including `app/python`, together. You can move that
+whole folder without recreating an environment. Startup downloads or installs
+nothing. Do not run the app builder or create a `.venv` for a release download.
+GitHub's automatic **Source code** ZIPs lack the compiled app and bundled Python.
 
-## Before you start
+For releases before v1.3.0, use their included setup instructions or download
+a current self-contained release instead.
+
+## Source checkouts only: install Python and packages
+
+The commands below are for developers and source-code downloads. Platform
+release users skip them.
+
+### Before you start with source code
 
 Install Python 3.10 or newer from [python.org](https://www.python.org/downloads/).
 On Windows, include **Tcl/Tk and IDLE** and the Python launcher in the installer.
@@ -24,10 +34,10 @@ and Apple Silicon. Use a Python release that supports your macOS version.
 
 Keep the downloaded tools together in a local folder. Create the Python
 environment on that computer; do not copy `.venv` from another computer or
-operating system. The launcher uses this environment and does not bundle or
-automatically install Python or Jupyter.
+operating system. Source checkouts use this environment; they do not install
+packages on startup.
 
-## Windows
+### Windows source checkout
 
 Open the tools folder in File Explorer. Right-click an empty area and choose
 **Open in Terminal**, using PowerShell. Run:
@@ -37,10 +47,9 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Then double-click **Journal Notebook Launcher.exe** in the tools folder.
-The precompiled release requires no C# compiler.
+Then build the launcher using the source-checkout instructions below.
 
-## Mac: Intel and Apple Silicon
+### Mac source checkout: Intel and Apple Silicon
 
 Open Terminal in the tools folder and run:
 
@@ -49,18 +58,16 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Then double-click **Journal Notebook Launcher.app** in the tools folder.
-Keep the precompiled app inside the extracted tools folder. You may move that
-whole folder, for example into your local Applications folder. The `.command`
-shortcut opens the same launcher.
+Then build the launcher using the source-checkout instructions below, or open
+the `.command` shortcut, which starts the same control window.
 
 With native Python and dependencies, Apple Silicon does not need Rosetta.
 
-### Tools stored on a shared or external drive
+## Tools stored on a shared or external drive
 
 Some shared/external filesystems add Finder metadata or strip executable
-permissions from `.app` bundles. For a precompiled release, keep the entire
-extracted tools folder and its `.venv` on a local disk. Choose a shared project
+permissions from `.app` bundles. For a release, keep the entire
+extracted tools folder and its bundled runtime on a local disk. Choose a shared project
 output destination in the notebook when needed.
 
 For an advanced **source checkout** on a shared drive, you can build a launcher
@@ -119,7 +126,7 @@ notebook and choose the existing project in **Project folder**.
 | --- | --- |
 | No launcher app in the folder | Download a platform release ZIP, not the automatic Source code ZIP; extract the complete folder. Source users can use the build instructions below. |
 | The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
-| The app cannot find Python or a required package | Reinstall `requirements.txt` using the `.venv` Python command above. |
+| The app cannot find Python or a required package | Extract the complete platform release ZIP again, including `app/python`. For a source checkout, reinstall `requirements.txt` using its `.venv` Python. |
 | The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
 | No project papers appear | Select the generated project folder and click **Scan project folder**. It needs its original `project.json` and the CSV named by `sample_export`. The central launcher cannot infer which project you want. |
 | A saved paper is missing from the JSON list | Scan again after saving externally. Only full-paper categorization JSON is listed, not Crossref or sampling reports. You can also load a file by path or upload. |
@@ -133,7 +140,7 @@ notebook and choose the existing project in **Project folder**.
 | The manual Create button is disabled | Add at least one checked paper. Correct and recheck any nonempty bulk list, or clear that input to proceed with the existing selection. |
 | Manual DOI selection disappears | Restarting or rerunning the notebook clears the in-memory selection/cache. Keep the kernel running until creation; completed projects retain their archived metadata. |
 | The copy button cannot access the clipboard | Select the displayed count and copy it manually. The notebook must run on your own computer to use its clipboard. |
-| The app fails after the tools folder was moved | Keep the precompiled app beside `notebook_launcher.py` and `app/`. Recreate `.venv` if its old environment no longer works after moving. Source-built, separately installed apps may need rebuilding. |
+| The app fails after the tools folder was moved | Keep the app beside `notebook_launcher.py` and the complete `app/` folder. Release downloads need no environment recreation. Source checkouts may need their `.venv` recreated or a separately installed launcher rebuilt. |
 | macOS blocks the app | For an app you trust, use the approval offered in **System Settings → Privacy & Security**, following your organisation's policy. |
 
 ### Python reports `OSError: [Errno 45] Operation not supported` on a Mac

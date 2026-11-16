@@ -44,6 +44,10 @@ candidates=(
 # An explicit environment choice takes precedence on both Windows and macOS.
 if [[ -n "${JOURNAL_TOOLS_PYTHON:-}" ]]; then
   candidates=("$JOURNAL_TOOLS_PYTHON")
+elif [[ -d "$tools_dir/app/python" ]]; then
+  candidates=("$tools_dir/app/python/bin/python3")
+  unset PYTHONHOME PYTHONPATH VIRTUAL_ENV TCL_LIBRARY TK_LIBRARY
+  export PYTHONUTF8=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
 elif [[ -x "$tools_dir/.venv/bin/python3" ]]; then
   candidates=("$tools_dir/.venv/bin/python3")
 elif [[ -x "$tools_dir/.venv/bin/python" ]]; then
@@ -57,5 +61,10 @@ for candidate in "${candidates[@]}"; do
     break
   fi
 done
-[[ -n "$selected_python" ]] || fail "The launcher needs Python 3.10 or newer with Tk and the packages in requirements.txt. Install those requirements into your Python environment, or set JOURNAL_TOOLS_PYTHON to a suitable Python executable."
+if [[ -z "$selected_python" ]]; then
+  if [[ -d "$tools_dir/app/python" && -z "${JOURNAL_TOOLS_PYTHON:-}" ]]; then
+    fail "The bundled runtime could not start. Extract the complete platform ZIP again onto a local disk."
+  fi
+  fail "The launcher needs Python 3.10 or newer with Tk and the packages in requirements.txt. For source checkouts, follow dev/SETUP.md or set JOURNAL_TOOLS_PYTHON."
+fi
 exec "$selected_python" "$tools_dir/notebook_launcher.py" "$@"

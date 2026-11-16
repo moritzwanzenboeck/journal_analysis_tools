@@ -98,8 +98,15 @@ class NotebookService:
         runtime = Path(self._runtime.name)
         self.token = secrets.token_urlsafe(32)
         environment = dict(os.environ, JUPYTER_RUNTIME_DIR=str(runtime),
-                           JUPYTER_CONFIG_DIR=str(runtime / 'config'), JUPYTER_TOKEN=self.token)
+                           JUPYTER_CONFIG_DIR=str(runtime / 'config'), JUPYTER_TOKEN=self.token,
+                           JUPYTER_DATA_DIR=str(runtime / 'data'), JUPYTER_PATH=str(runtime / 'data'))
         environment.pop('JUPYTER_TOKEN_FILE', None)
+        # Installed kernelspecs may contain the build machine's absolute Python
+        # path. Always launch this service's interpreter, including after a move.
+        kernel_dir = runtime / 'data' / 'kernels' / 'python3'
+        kernel_python = Path(self.python)
+        if kernel_python.name.lower() == 'pythonw.exe':
+            kernel_python = kernel_python.with_name('python.exe')
         command = [self.python, '-m', 'notebook', '--no-browser',
                    '--ServerApp.ip=127.0.0.1', f'--ServerApp.port={self.spec.preferred_port}',
                    '--ServerApp.port_retries=100', '--ServerApp.base_url=/',
@@ -107,6 +114,11 @@ class NotebookService:
         options = ({'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW}
                    if os.name == 'nt' else {'start_new_session': True})
         try:
+            kernel_dir.mkdir(parents=True)
+            (kernel_dir / 'kernel.json').write_text(json.dumps(dict(
+                argv=[str(kernel_python), '-m', 'ipykernel_launcher', '-f', '{connection_file}'],
+                display_name='Python 3 (Journal Analysis Tools)', language='python')),
+                encoding='utf-8')
             self._log = self.log_path.open('w', encoding='utf-8')
             if os.name != 'nt':
                 self.log_path.chmod(0o600)

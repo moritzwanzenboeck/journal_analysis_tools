@@ -8,7 +8,8 @@ text copied from PDFs, and categorize whole papers by section.
 Download the ZIP for your computer from [Releases](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest),
 then extract the complete folder onto a local disk. Choose a platform ZIP under
 **Assets**; the automatic **Source code** downloads do not contain compiled apps.
-Each platform ZIP includes its ready-to-open launcher, so no compilation is needed.
+Each platform ZIP includes the app, Python and all required notebook packages.
+No Python installation, setup commands or compilation are needed.
 
 Double-click **Journal Notebook Launcher** in the extracted tools folder:
 
@@ -18,11 +19,11 @@ Double-click **Journal Notebook Launcher** in the extracted tools folder:
 | Intel Mac (`macos-x86_64` ZIP) | **Journal Notebook Launcher.app** |
 | Apple Silicon Mac (`macos-arm64` ZIP) | **Journal Notebook Launcher.app** |
 
-On a new computer, complete the [one-time setup](dev/SETUP.md) first, or ask the
-person providing these tools to do it. Python and Jupyter are still required;
-the compiled launcher does not bundle them. After setup, you can use the app
-without typing commands. Keep the complete extracted tools folder together on
-a local disk. Your analysis projects and output can be saved on a shared drive.
+Keep the complete extracted tools folder together on a local disk, including
+its `app` folder. Your analysis projects and output can be saved on a shared
+drive. The app uses its included Python and installs nothing when you open it.
+On macOS, approve the downloaded app in **System Settings → Privacy & Security**
+if prompted and you trust its source.
 
 1. Click **Start** next to the tool you want to use.
 2. Its notebook opens in your web browser. In the notebook's **Run** menu, choose

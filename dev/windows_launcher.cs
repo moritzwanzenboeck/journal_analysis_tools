@@ -43,13 +43,21 @@ internal static class NotebookLauncher
                 throw new FileNotFoundException("The notebook tools folder is unavailable. Keep the launcher beside notebook_launcher.py and the app folder.", script);
 
             string python = Environment.GetEnvironmentVariable("JOURNAL_TOOLS_PYTHON");
+            bool bundled = false;
             if (String.IsNullOrWhiteSpace(python))
             {
-                python = Path.Combine(root, ".venv", "Scripts", "pythonw.exe");
-                if (!File.Exists(python)) python = __PYTHON_EXECUTABLE__;
+                python = Path.Combine(root, "app", "python", "pythonw.exe");
+                bundled = Directory.Exists(Path.Combine(root, "app", "python"));
+                if (!bundled)
+                {
+                    python = Path.Combine(root, ".venv", "Scripts", "pythonw.exe");
+                    if (!File.Exists(python)) python = __PYTHON_EXECUTABLE__;
+                }
             }
             if (!File.Exists(python))
-                throw new FileNotFoundException("Python was not found. Complete the one-time setup in dev/SETUP.md, or set JOURNAL_TOOLS_PYTHON to your Python executable.", python);
+                throw new FileNotFoundException(bundled ?
+                    "The bundled runtime is incomplete. Extract the complete platform ZIP again." :
+                    "Python was not found. For source checkouts, follow dev/SETUP.md.", python);
 
             string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                                          "Journal Analysis Tools", "Logs");
@@ -66,6 +74,13 @@ internal static class NotebookLauncher
             start.StandardOutputEncoding = Encoding.UTF8;
             start.StandardErrorEncoding = Encoding.UTF8;
             start.EnvironmentVariables["PYTHONUTF8"] = "1";
+            if (bundled)
+            {
+                foreach (string key in new string[] { "PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "TCL_LIBRARY", "TK_LIBRARY" })
+                    start.EnvironmentVariables.Remove(key);
+                start.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
+                start.EnvironmentVariables["PYTHONDONTWRITEBYTECODE"] = "1";
+            }
             using (var writer = new StreamWriter(new FileStream(logPath, FileMode.Append,
                                                                FileAccess.Write, FileShare.ReadWrite), Encoding.UTF8))
             using (TextWriter log = TextWriter.Synchronized(writer))
@@ -81,7 +96,8 @@ internal static class NotebookLauncher
                 process.WaitForExit();
                 if (process.ExitCode != 0 && !check)
                     MessageBox.Show("The launcher could not start. See:\n" + logPath +
-                                    "\n\nInstall requirements.txt in the project's Python environment.",
+                                    "\n\n" + (bundled ? "Extract the complete platform ZIP again if files are missing." :
+                                    "For source checkouts, follow dev/SETUP.md."),
                                     "Journal Notebook Launcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return process.ExitCode;
             }

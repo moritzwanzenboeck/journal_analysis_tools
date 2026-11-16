@@ -1,7 +1,7 @@
-"""Build and ZIP a relocatable, precompiled launcher with its notebook tools.
+"""Build and ZIP a self-contained launcher, Python and notebook tools.
 
-Run on each target OS/architecture. Python/Jupyter are not bundled. Only an
-explicit list of source files is packaged; no venv, settings or project data.
+Run on each target OS/architecture. Download and install dependencies at build
+time only. Include runtime licenses; exclude local venvs, settings and projects.
 """
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ import zipfile
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dev.build_notebook_launchers import APP_NAME, WINDOWS_APP_NAME, install, install_windows, validate_macos_app
+from dev.bundle_python import bundle_python, isolated_environment, runtime_python
 
 TARGETS = ('windows-x86_64', 'macos-x86_64', 'macos-arm64')
 SOURCE_FILES = (
@@ -79,7 +80,7 @@ def copy_sources(root, package):
 
 
 def write_archive(package, archive):
-    with zipfile.ZipFile(archive, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
+    with zipfile.ZipFile(archive, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zipped:
         zipped.write(package, package.name + '/')
         for path in sorted(package.rglob('*')):
             if '__pycache__' in path.parts or path.suffix == '.pyc':
@@ -94,7 +95,7 @@ def source_revision(root):
     return result.stdout.strip() if result.returncode == 0 else 'unknown'
 
 
-def build_release(root, version, output):
+def build_release(root, version, output, *, runtime_cache=None):
     validate_version(version)
     root, output = Path(root).resolve(), Path(output).expanduser().resolve()
     target = native_target()
@@ -106,6 +107,7 @@ def build_release(root, version, output):
     with tempfile.TemporaryDirectory(prefix='journal-release-') as temporary:
         package = Path(temporary)/archive.stem
         copy_sources(root, package)
+        runtime_metadata = bundle_python(package, target, runtime_cache or root/'dist/runtime-cache')
         if target.startswith('macos-'):
             install(package, package, portable=True)
             app_name = APP_NAME
@@ -113,15 +115,15 @@ def build_release(root, version, output):
             install_windows(package, package, portable=True)
             app_name = WINDOWS_APP_NAME
         metadata = dict(version=version, target=target, source_commit=source_revision(root),
-                        python_bundled=False, python_requirement='3.10+', app=app_name)
+                        app=app_name, **runtime_metadata)
         (package/'RELEASE.json').write_text(json.dumps(metadata, indent=2)+'\n', encoding='utf-8')
         (package/'INSTALL.txt').write_text(
             'JOURNAL ANALYSIS TOOLS '+version+'\n\n'
-            'This archive includes the compiled launcher. No compiler or build command is needed.\n'
+            'Python, Jupyter and the compiled launcher are included. No setup commands are needed.\n'
             '1. Extract the complete folder onto a LOCAL disk. Keep all its files together.\n'
-            '2. Install Python 3.10+ with Tk, then follow the one-time Python/Jupyter setup in dev/SETUP.md.\n'
-            '3. Double-click '+app_name+'. Start a service, then choose Run All Cells in the notebook.\n\n'
-            'Python/Jupyter are not bundled. Do not copy an existing .venv from another computer.\n'
+            '2. Double-click '+app_name+'.\n'
+            '3. Start a service, then choose Run All Cells in the notebook.\n\n'
+            'Keep app/python with the tools. Nothing is installed or downloaded on startup.\n'
             'Project output may be saved on a shared drive, while this tools folder remains local.\n', encoding='utf-8')
         try:
             write_archive(package, archive)
@@ -150,15 +152,15 @@ def verify_archive(archive):
         original = destination/archive.stem
         package = destination/'Moved journal tools ä'
         original.rename(package)
-        metadata = json.loads((package/'RELEASE.json').read_text())
-        if metadata['target'] != native_target():
+        metadata = json.loads((package/'RELEASE.json').read_text(encoding='utf-8'))
+        if metadata['target'] != native_target() or metadata.get('python_bundled') is not True:
             raise ValueError('Cannot verify a release for another platform on this machine.')
-        # A recipient creates a fresh local venv. Use the test machine's installed
-        # packages for this offline check; no build-directory paths are available.
-        subprocess.run([sys.executable, '-m', 'venv', '--system-site-packages', '--without-pip', str(package/'.venv')], check=True)
-        environment = dict(os.environ, JOURNAL_TOOLS_NO_DIALOG='1')
-        for key in ('JOURNAL_TOOLS_PYTHON', 'JOURNAL_TOOLS_BUILD_PYTHON'):
-            environment.pop(key, None)
+        environment = dict(isolated_environment(), JOURNAL_TOOLS_NO_DIALOG='1')
+        # No Python or package manager from PATH, user site or the build venv.
+        environment['PATH'] = str(Path(os.environ.get('WINDIR', 'C:/Windows'))/'System32') if os.name == 'nt' else '/usr/bin:/bin'
+        # A user's unrelated Python settings must not break native app startup.
+        native_environment = dict(environment, PYTHONHOME=str(destination/'missing-python'),
+                                  PYTHONPATH=str(destination/'missing-packages'))
         if sys.platform == 'darwin':
             validate_macos_app(package/APP_NAME)
             script = subprocess.check_output(['/usr/bin/osadecompile', str(package/APP_NAME/'Contents/Resources/Scripts/main.scpt')], text=True)
@@ -167,7 +169,10 @@ def verify_archive(archive):
             command = ['/bin/bash', str(package/'start_notebook.command'), '--check']
         else:
             command = [str(package/WINDOWS_APP_NAME), '--check']
-        subprocess.run(command, cwd=package, env=environment, check=True, timeout=60)
+        subprocess.run(command, cwd=destination, env=native_environment, check=True, timeout=60)
+        subprocess.run([str(runtime_python(package, native_target())), '-I',
+                        str(Path(__file__).with_name('check_bundled_runtime.py')), str(package)],
+                       cwd=destination, env=environment, check=True, timeout=240)
     print('Verified extracted, relocated native release:', archive.name)
 
 
@@ -175,8 +180,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True)
     parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1]/'dist')
+    parser.add_argument('--runtime-cache', type=Path, help='Reuse verified runtime downloads between builds')
     args = parser.parse_args()
-    archive = build_release(Path(__file__).resolve().parents[1], args.version, args.output)
+    archive = build_release(Path(__file__).resolve().parents[1], args.version, args.output, runtime_cache=args.runtime_cache)
     verify_archive(archive)
     print('Ready for release:', archive)
 

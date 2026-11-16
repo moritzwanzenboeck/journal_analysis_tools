@@ -21,6 +21,7 @@ import zipfile
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dev.package_release import TARGETS, asset_name, validate_version
+from dev.bundle_python import MANIFEST
 
 
 def validate_assets(version, directory, revision):
@@ -33,6 +34,8 @@ def validate_assets(version, directory, revision):
     if actual != expected:
         raise ValueError(f'Expected all three native release ZIPs; found {sorted(actual)}')
     files = []
+    runtime = json.loads(MANIFEST.read_text(encoding='utf-8'))
+    python_series = '.'.join(runtime['python_version'].split('.')[:2])
     for target in TARGETS:
         archive = directory/asset_name(version, target)
         checksum = archive.with_suffix('.zip.sha256')
@@ -44,11 +47,21 @@ def validate_assets(version, directory, revision):
         with zipfile.ZipFile(archive) as zipped:
             metadata = json.loads(zipped.read(archive.stem+'/RELEASE.json'))
             if (metadata.get('version') != version or metadata.get('target') != target
-                    or metadata.get('source_commit') != revision or metadata.get('python_bundled') is not False):
+                    or metadata.get('source_commit') != revision or metadata.get('python_bundled') is not True
+                    or metadata.get('python_version') != runtime['python_version']
+                    or metadata.get('runtime_sha256') != runtime['targets'][target]['sha256']):
                 raise ValueError(f'Invalid release metadata for {archive.name}')
             required = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
-                        'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
+                        'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt',
+                        'app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst']
             required += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
+            if target.startswith('windows-'):
+                required += ['app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
+                             'app/python/Lib/site-packages/notebook/__init__.py']
+            else:
+                required += ['app/python/bin/python3',
+                             f'app/python/lib/python{python_series}/LICENSE.txt',
+                             f'app/python/lib/python{python_series}/site-packages/notebook/__init__.py']
             for name in required:
                 if archive.stem+'/'+name not in zipped.namelist():
                     raise ValueError(f'Release is missing {name}')

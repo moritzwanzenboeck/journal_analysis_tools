@@ -65,8 +65,9 @@ fall back to the checkout path recorded at build time.
 On Windows the builder creates `Journal Notebook Launcher.exe`
 using the .NET Framework C# compiler. `windows_launcher.cs` opens the existing
 Python GUI without a console, forwards command-line options and records startup
-errors in the user's launcher log. It prefers `.venv/Scripts/pythonw.exe`, then
-the Python used at build time; `JOURNAL_TOOLS_PYTHON` overrides both. Use the
+errors in the user's launcher log. It prefers `app/python/pythonw.exe` in
+bundled releases, then `.venv/Scripts/pythonw.exe` and the Python used at build
+time in source checkouts; `JOURNAL_TOOLS_PYTHON` overrides these. Use the
 executable's `--check` option to verify startup without opening a window.
 
 On macOS it creates `Journal Notebook Launcher.app`. This is an AppleScript
@@ -84,28 +85,38 @@ running launcher before rebuilding. For a shared/external drive that cannot
 store executable signed apps, select a local destination such as `~/Applications`;
 the notebooks remain in the tools folder.
 
-See [one-time setup](SETUP.md) for the matched OS setup instructions and log
+See [setup and troubleshooting](SETUP.md) for source setup instructions and log
 locations, and [analysis reference](analysis_reference.md) for export and counting
 rules. Keep programming details out of the main user guide.
 
 Generated executables, application bundles, virtual environments, logs and Python caches are
 ignored by Git. `logs/` keeps any local diagnostics out of the user-facing folder.
 
-## Prepare a release with compiled apps
+## Prepare a self-contained release
 
 `dev/package_release.py` builds a portable native launcher and packages it with
 an explicit whitelist of runtime/notebook files. Saved notebook outputs and
 widget state are stripped from the copy. No venv, settings, project output or
-logs are included. Python and Jupyter remain one-time prerequisites.
+logs are included. `dev/bundle_python.py` downloads a relocatable Python from
+[python-build-standalone](https://github.com/astral-sh/python-build-standalone),
+using the release, version and SHA-256 values pinned in `dev/python_runtime.json`.
+It installs runtime wheels at build time into `app/python/`, retains Python and
+third-party licenses, records installed package versions in
+`app/runtime-packages.json` and removes debug symbols and unused script entry
+points. The app downloads and installs nothing on startup.
 
 ```bash
-python dev/package_release.py --version v1.1.0 --output dist
+python dev/package_release.py --version v1.3.0 --output dist
 ```
 
 Run this separately on Windows x86_64, Intel macOS and Apple Silicon macOS.
 The script creates an OS/architecture-specific ZIP and `.zip.sha256` checksum,
-then extracts and moves the ZIP, creates a temporary environment and checks native
-startup. Mac app signatures and executable modes survive ZIP extraction. Windows
+then extracts and moves the ZIP and checks native startup with system Python
+removed from PATH and unrelated Python environment settings present. The bundled
+runtime must initialize Tk, start both Jupyter servers, execute both notebooks
+in real bundled kernels, kill kernels and shut down its owned processes.
+`dev/check_bundled_runtime.py` performs those checks using runtime dependencies
+only. Mac app signatures and executable modes survive ZIP extraction. Windows
 checks run the compiled GUI executable. Portable builds omit checkout and Python
 fallback paths from the build machine; normal `--destination` builds retain
 those fallbacks for a locally installed app.
@@ -114,14 +125,16 @@ For routine releases, commit release notes in `dev/releases/<tag>.md`, then push
 a version tag:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 `.github/workflows/release.yml` calls the compatibility workflow for all six
 Windows/Intel/Apple Silicon and Python 3.10/3.14 combinations. The three Python
 3.14 jobs also build and verify platform ZIPs and upload them as workflow
-artifacts. Publication waits for every matrix job to pass, downloads the three
+artifacts. All Python 3.14 jobs also verify a self-contained package on ordinary
+branch/PR runs, using a temporary `v0.0.0-ci` version without publishing.
+Publication waits for every matrix job to pass, downloads the three
 native packages, verifies their checksums and commit metadata, uploads all six
 files to a draft GitHub release and only then publishes it. The built-in
 `GITHUB_TOKEN` supplies release access; no personal token is stored in the repo.
@@ -130,7 +143,12 @@ Published versions are never overwritten. Use a new tag for another release.
 A workflow or local Mac run alone does not certify Windows or Apple Silicon:
 inspect the actual release-run results. Users download the attached platform
 ZIPs under Assets, not GitHub's automatically generated Source code archives.
-They do not run a compiler or the app builder.
+They do not install Python, run setup commands, a compiler or the app builder.
+
+Runtime archive downloads are cached in ignored `dist/runtime-cache/`; override
+with `--runtime-cache` if needed. The unit suite remains offline; the packaging
+step requires build-time access to GitHub and PyPI. To repeat the complete native
+bundle integration through unittest, set `JOURNAL_TOOLS_TEST_BUNDLE=1`.
 
 ## Check the full-paper layout in a browser
 

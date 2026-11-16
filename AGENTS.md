@@ -10,7 +10,9 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   and tests/build tools in `dev/`. Keep the Windows/macOS app builder in
   `dev/build_notebook_launchers.py` and route `start_notebook.command` through
   `app/launch_notebook.sh`. The launcher uses an existing
-  Python environment; it does not bundle Python or install packages on startup.
+  Python environment in source checkouts. Release downloads bundle a relocatable
+  Python runtime and notebook dependencies under `app/python/`; never install
+  packages or download a runtime on startup.
   The Windows app is a small native entry point compiled from
   `dev/windows_launcher.cs`; keep generated executables out of Git.
 - Bind managed servers to loopback with token authentication. Display actual

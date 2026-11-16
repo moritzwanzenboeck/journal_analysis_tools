@@ -1,6 +1,7 @@
 """Native release relocation, privacy and all-platform publication gates."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -11,20 +12,31 @@ import zipfile
 from dev.build_notebook_launchers import launcher_source
 from dev.package_release import SOURCE_FILES, TARGETS, asset_name, build_release, copy_sources, verify_archive
 from dev.publish_release import publish, validate_assets
+from dev.bundle_python import MANIFEST
 
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = 'a'*40
 
 
 def make_assets(directory):
+    runtime = json.loads(MANIFEST.read_text(encoding='utf-8'))
+    series = '.'.join(runtime['python_version'].split('.')[:2])
     for target in TARGETS:
         archive = directory/asset_name('v1.1.0', target)
         with zipfile.ZipFile(archive, 'w') as zipped:
-            metadata = dict(version='v1.1.0', target=target, source_commit=REVISION, python_bundled=False)
+            metadata = dict(version='v1.1.0', target=target, source_commit=REVISION, python_bundled=True,
+                            python_version=runtime['python_version'], runtime_sha256=runtime['targets'][target]['sha256'])
             zipped.writestr(archive.stem+'/RELEASE.json', json.dumps(metadata))
             files = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
-                     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
+                     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt',
+                     'app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst']
             files += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
+            if target.startswith('windows-'):
+                files += ['app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
+                          'app/python/Lib/site-packages/notebook/__init__.py']
+            else:
+                files += ['app/python/bin/python3', f'app/python/lib/python{series}/LICENSE.txt',
+                          f'app/python/lib/python{series}/site-packages/notebook/__init__.py']
             for name in files:
                 zipped.writestr(archive.stem+'/'+name, b'test fixture')
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
@@ -41,19 +53,19 @@ class PackagingTests(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT/name, target)
             private = root/'clean_and_count_text.ipynb'
-            notebook = json.loads(private.read_text())
+            notebook = json.loads(private.read_text(encoding='utf-8'))
             notebook['metadata']['widgets'] = {'private': 'PRIVATE TEXT'}
             cell = next(cell for cell in notebook['cells'] if cell['cell_type'] == 'code')
             cell['execution_count'] = 1
             cell['outputs'] = [{'output_type': 'stream', 'name': 'stdout', 'text': 'PRIVATE TEXT'}]
-            private.write_text(json.dumps(notebook))
+            private.write_text(json.dumps(notebook), encoding='utf-8')
             original = private.read_bytes()
             (root/'.env').write_text('PRIVATE SECRET')
             (root/'output').mkdir()
             (root/'output/private.csv').write_text('PRIVATE PROJECT')
             copy_sources(root, package)
             self.assertEqual({p.relative_to(package).as_posix() for p in package.rglob('*') if p.is_file()}, set(SOURCE_FILES))
-            self.assertNotIn('PRIVATE TEXT', (package/private.name).read_text())
+            self.assertNotIn('PRIVATE TEXT', (package/private.name).read_text(encoding='utf-8'))
             self.assertEqual(private.read_bytes(), original)
 
     def test_portable_mac_script_contains_no_checkout_or_python_paths(self):
@@ -68,7 +80,8 @@ class PackagingTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 asset_name(value, TARGETS[0])
 
-    @unittest.skipUnless(sys.platform in ('darwin', 'win32'), 'Native release builder required')
+    @unittest.skipUnless(os.environ.get('JOURNAL_TOOLS_TEST_BUNDLE') == '1',
+                         'Native bundle integration runs in the packaging workflow')
     def test_native_archive_extracts_and_starts_after_relocation(self):
         with tempfile.TemporaryDirectory() as temporary:
             archive = build_release(ROOT, 'v1.1.0', Path(temporary))
@@ -103,6 +116,24 @@ class FakeGitHub:
 
 
 class PublicationTests(unittest.TestCase):
+    def test_runtime_is_required_before_any_release_api_access(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_assets(root)
+            archive = root/asset_name('v1.1.0', TARGETS[0])
+            with zipfile.ZipFile(archive) as zipped:
+                entries = {name: zipped.read(name) for name in zipped.namelist()
+                           if not name.endswith('/app/python/python.exe')}
+            with zipfile.ZipFile(archive, 'w') as zipped:
+                for name, content in entries.items():
+                    zipped.writestr(name, content)
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            archive.with_suffix('.zip.sha256').write_text(f'{digest}  {archive.name}\n')
+            client = FakeGitHub()
+            with self.assertRaisesRegex(ValueError, 'app/python/python.exe'):
+                publish('v1.1.0', root, REVISION, 'example/tools', 'Notes', client)
+            self.assertEqual(client.calls, [])
+
     def test_all_platforms_and_checksums_are_required_before_api_access(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

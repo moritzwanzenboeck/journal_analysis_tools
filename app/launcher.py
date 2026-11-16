@@ -19,6 +19,9 @@ def main():
     parser.add_argument('--check', action='store_true', help='Check dependencies and notebook paths without opening a window')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    recovery = ('Extract the complete platform ZIP again if bundled files are missing.'
+                if (root / 'app/python').is_dir() else
+                'For source checkouts, install requirements.txt in this Python environment.')
     try:
         import notebook, ipykernel, ipywidgets  # noqa: F401
         for spec in SERVICES:
@@ -26,9 +29,9 @@ def main():
                 raise FileNotFoundError(f'Notebook not found: {root / spec.notebook}')
     except (ImportError, FileNotFoundError) as error:
         if args.check:
-            parser.exit(1, str(error) + '\nInstall requirements.txt in this Python environment.\n')
+            parser.exit(1, str(error) + '\n' + recovery + '\n')
         messagebox.showerror('Cannot launch notebooks',
-                             f'{error}\n\nInstall requirements.txt in this Python environment.')
+                             f'{error}\n\n{recovery}')
         return
     if args.check:
         try:
