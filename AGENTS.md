@@ -42,3 +42,10 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
 - Update summary widgets in place, preserve fixed cell/button positions and keep
   previews out of the document flow. Hiding a preview must clear and hide the
   whole panel. Maintain project, persistence and layout regression checks.
+
+- Preserve both random journal sampling and manual DOI selection. Manual lookup
+  must preload complete export metadata, deduplicate bare DOI/resolver URL forms,
+  and reuse cached successes on retry. Creation from checked records must not
+  fetch again or sample/filter explicit choices. Show the journal/count/year
+  overview and multi-journal warning before creation. Keep manual project exports
+  compatible with the categorization notebook's `sample_export` contract.

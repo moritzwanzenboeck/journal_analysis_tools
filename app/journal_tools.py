@@ -6,6 +6,8 @@ The backend uses only the Python standard library.
 from __future__ import annotations
 
 import calendar
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 import csv
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -24,7 +26,7 @@ import tempfile
 import time
 import unicodedata
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, unquote, urlsplit
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -204,42 +206,46 @@ def normalize(records, journal, start, end, basis="first"):
         # Prefer the richer record when the same DOI appears more than once.
         if doi not in by_doi or len(json.dumps(item)) > len(json.dumps(by_doi[doi])):
             by_doi[doi] = item
-    rows = []
-    for doi, item in by_doi.items():
-        selected = publication_date(item, basis)
-        online, printed = metadata_date(item, "published-online"), metadata_date(item, "published-print")
-        title = plain_text(" ".join(item.get("title", [])))
-        if not title:
-            raise ValueError(f"Missing title for {doi}")
-        authors = []
-        for author in item.get("author", []):
-            family, given = plain_text(author.get("family")), plain_text(author.get("given"))
-            name = f"{family}, {given}" if family and given else family or given
-            if not name:
-                name = plain_text(author.get("name"))
-                if name:
-                    name = "{" + name + "}"  # BibTeX corporate author.
-            if not name:
-                raise ValueError(f"Unusable author metadata for {doi}")
-            authors.append(name)
-        rows.append({
-            "bibtex_key": slugify(journal.name).replace("-", "_") + "_" + re.sub(r"[^a-z0-9]+", "_", doi).strip("_"),
-            "doi": doi, "title": title, "authors": " and ".join(authors),
-            "journal": plain_text(" ".join(item.get("container-title", []))) or journal.name,
-            "year": str((printed or selected)[0].year), "volume": item.get("volume", ""),
-            "issue": item.get("issue", ""), "pages": item.get("page", ""),
-            "article_number": item.get("article-number", ""),
-            "publication_date": selected[1], "date_source": selected[3], "date_precision": selected[2],
-            "published_online": online[1] if online else "",
-            "published_print": printed[1] if printed else "",
-            "issn": "; ".join(item.get("ISSN", [])), "publisher": plain_text(item.get("publisher")),
-            "url": "https://doi.org/" + quote(doi, safe="/"),
-            "abstract": plain_text(item.get("abstract")),
-        })
+    rows = [_record_row(item, doi, journal.name, basis) for doi, item in by_doi.items()]
     rows.sort(key=lambda row: (row["publication_date"], row["doi"]), reverse=True)
     if len({row["bibtex_key"] for row in rows}) != len(rows):
         raise ValueError("BibTeX key collision; no exports written.")
     return rows, outside
+
+
+def _record_row(item, doi, journal_name, basis="first"):
+    selected = publication_date(item, basis)
+    if not selected:
+        raise ValueError(f"No {basis} publication date for {doi}")
+    online, printed = metadata_date(item, "published-online"), metadata_date(item, "published-print")
+    title = plain_text(" ".join(item.get("title", [])))
+    if not title:
+        raise ValueError(f"Missing title for {doi}")
+    authors = []
+    for author in item.get("author", []):
+        family, given = plain_text(author.get("family")), plain_text(author.get("given"))
+        name = f"{family}, {given}" if family and given else family or given
+        if not name:
+            name = plain_text(author.get("name"))
+            if name:
+                name = "{" + name + "}"  # BibTeX corporate author.
+        if not name:
+            raise ValueError(f"Unusable author metadata for {doi}")
+        authors.append(name)
+    return {
+        "bibtex_key": slugify(journal_name).replace("-", "_") + "_" + re.sub(r"[^a-z0-9]+", "_", doi).strip("_"),
+        "doi": doi, "title": title, "authors": " and ".join(authors),
+        "journal": plain_text(" ".join(item.get("container-title", []))) or journal_name,
+        "year": str((printed or selected)[0].year), "volume": item.get("volume", ""),
+        "issue": item.get("issue", ""), "pages": item.get("page", ""),
+        "article_number": item.get("article-number", ""),
+        "publication_date": selected[1], "date_source": selected[3], "date_precision": selected[2],
+        "published_online": online[1] if online else "",
+        "published_print": printed[1] if printed else "",
+        "issn": "; ".join(item.get("ISSN", [])), "publisher": plain_text(item.get("publisher")),
+        "url": "https://doi.org/" + quote(doi, safe="/"),
+        "abstract": plain_text(item.get("abstract")),
+    }
 
 
 def bibtex_escape(value):
@@ -442,24 +448,10 @@ def project_folder_name(journal, start, end, created_on=None):
     return f"{created_on:%d%m%Y}_journalanalysis_{slugify(journal.name)}_{start}_{end}"
 
 
-def create_project(journal, start, end, count, projects_root, *, date_basis="first",
-                   seed=None, include_notices=False, email=None, project_name=None,
-                   input_json=None, template_path=None):
-    """Fetch, validate and sample before creating a fresh analysis project.
-
-    Existing directories are never reused. input_json replays saved Crossref
-    records without a network request. PDFs must be obtained separately.
-    """
-    validate_window(start, end, date_basis)
-    # Validate count/seed before requesting metadata.
-    if type(count) is not int or count < 1:
-        raise ValueError("Number of papers must be an integer of at least 1.")
-    if seed is not None and type(seed) is not int:
-        raise ValueError("Seed must be an integer or None.")
+def _prepare_project(projects_root, name, template_path=None):
     projects_root = Path(projects_root).expanduser().resolve()
     if not projects_root.is_dir():
         raise ValueError("Projects root must be an existing directory.")
-    name = project_folder_name(journal, start, end) if project_name is None else project_name
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", name):
         raise ValueError("Project folder name must be a single name using letters, digits, dots, underscores or hyphens.")
     reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {f'{prefix}{number}' for prefix in ('COM', 'LPT') for number in range(1, 10)}
@@ -476,6 +468,25 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
         if cell["cell_type"] == "code":
             cell["outputs"] = []
             cell["execution_count"] = None
+    return projects_root, destination, template
+
+
+def create_project(journal, start, end, count, projects_root, *, date_basis="first",
+                   seed=None, include_notices=False, email=None, project_name=None,
+                   input_json=None, template_path=None):
+    """Fetch, validate and sample before creating a fresh analysis project.
+
+    Existing directories are never reused. input_json replays saved Crossref
+    records without a network request. PDFs must be obtained separately.
+    """
+    validate_window(start, end, date_basis)
+    # Validate count/seed before requesting metadata.
+    if type(count) is not int or count < 1:
+        raise ValueError("Number of papers must be an integer of at least 1.")
+    if seed is not None and type(seed) is not int:
+        raise ValueError("Seed must be an integer or None.")
+    name = project_folder_name(journal, start, end) if project_name is None else project_name
+    projects_root, destination, template = _prepare_project(projects_root, name, template_path)
     if input_json is None:
         records, queries = fetch_records(journal, start, end, date_basis, email)
     else:
@@ -506,33 +517,48 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
         "records_with_partial_dates": sum(row["date_precision"] != "day" for row in rows),
         "coverage_note": "All matching Crossref journal-article records; completeness depends on publisher deposits.",
     }
+    return _write_project(destination, template, config, rows, selected, selection_report, records, report, journal)
+
+
+def _write_project(destination, template, config, rows, selected, selection_report, records, report, journal=None):
+    """Publish either selection mode with the same transactional folder/export checks."""
+    projects_root, name = destination.parent, destination.name
+    stem = Path(config["full_export"]).stem
+    sample_stem = Path(config["sample_export"]).stem
+    manual = config.get("selection_method") == "manual"
+    selection_note = (f"Manually selected {len(selected)} papers. No random sampling was applied."
+                      if manual else f"Selected {len(selected)} papers from {selection_report['eligible_entry_count']} eligible records "
+                      f"({len(rows)} total). Random seed: `{selection_report['seed']}`.")
+    readme = (
+        f"# {config['journal']} journal analysis\n\n"
+        f"Date range: **{config['start_date']} through {config['end_date']}**, inclusive. "
+        f"Publication basis: **{config['date_basis']}**.\n\n{selection_note}\n\n"
+        "- `project.json`: configuration and selection provenance.\n"
+        "- `output/`: matching CSV/BibTeX exports, selected papers, raw metadata and reports.\n"
+        "- `clean_and_count_text.ipynb`: self-contained cleaning, counting and full-paper categorization notebook.\n\n"
+        "Open the text-cleaning notebook in Jupyter and run all cells. Choose Clean & count (original) "
+        "for the existing workflow, or Categorize full paper to label sections. In Save and reload, "
+        "the paper selector reads this project's selected papers. Use Start / reopen paper, or Associate current text "
+        "for a paper already pasted. Save cleaned text and reloadable categorization JSON into this project's "
+        "paper_categorizations/ folder. Saved JSON lists existing categorizations throughout the project. "
+        "Choose your own folders and files for PDFs and analysis results. PDFs are not downloaded. "
+        "Crossref metadata needs human review. The first-publication rule uses the earliest known online, "
+        "print, published or issued date. Partial dates use the first day for filtering and retain their precision in exports.\n"
+    )
+    if manual:
+        readme += "\nJournals: " + "; ".join(item["name"] for item in config["journals"]) + ".\n"
+        if len(config["journals"]) > 1:
+            readme += "Warning: this manual selection contains papers from multiple journals.\n"
     # Build in a hidden sibling directory. Failed writes do not leave a partial project.
     with tempfile.TemporaryDirectory(prefix=".journal-analysis-", dir=projects_root) as temporary:
         staging = Path(temporary) / name
         staging.mkdir()
         output = staging / "output"
         export(rows, output, stem, report, records)
-        write_selection(selected, output, sample_stem, dict(selection_report, source_csv=f"output/{stem}.csv"))
+        write_selection(selected, output, sample_stem, dict(selection_report, source_csv=config["full_export"]))
         (staging / "project.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         (staging / "clean_and_count_text.ipynb").write_text(json.dumps(template, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        (staging / "README.md").write_text(
-            f"# {journal.name} journal analysis\n\n"
-            f"Date range: **{start} through {end}**, inclusive. Publication basis: **{date_basis}**.\n\n"
-            f"Selected {count} papers from {selection_report['eligible_entry_count']} eligible records "
-            f"({len(rows)} total). Random seed: `{selection_report['seed']}`.\n\n"
-            "- `project.json`: configuration and the saved seed.\n"
-            "- `output/`: matching CSV/BibTeX full exports and random sample, raw metadata and reports.\n"
-            "- `clean_and_count_text.ipynb`: self-contained cleaning, counting and full-paper categorization notebook.\n\n"
-            "Open the text-cleaning notebook in Jupyter and run all cells. "
-            "Choose Clean & count (original) for the existing workflow, or Categorize full paper to label sections. "
-            "In Save and reload, the sampled-paper selector reads this project’s random sample. Use Start / reopen paper, or Associate current text for a paper already pasted. Save cleaned text and reloadable categorization JSON into this project’s paper_categorizations/ folder. Saved JSON lists existing categorizations throughout the project. "
-            "Choose your own folders and files for PDFs and analysis results. "
-            "PDFs are not downloaded. Crossref metadata and the notice-title filter need human review. "
-            "The first-publication rule uses the earliest known online, print, published or issued date. "
-            "Partial dates use the first day for filtering and retain their precision in exports.\n",
-            encoding="utf-8",
-        )
-        # mkdir reserves the destination exclusively, including against simultaneous runs.
+        (staging / "README.md").write_text(readme, encoding="utf-8")
         destination.mkdir(exist_ok=False)
         try:
             for child in staging.iterdir():
@@ -542,3 +568,165 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
             raise
     return {"path": destination, "journal": journal, "rows": rows,
             "selected": selected, "selection_report": selection_report, "config": config}
+
+
+def normalize_doi(value):
+    """Accept a bare DOI or DOI resolver URL without guessing away suffix punctuation."""
+    value = str(value).strip()
+    value = re.sub(r"^doi:\s*", "", value, flags=re.IGNORECASE)
+    if re.match(r"^(?:dx\.|www\.)?doi\.org/", value, re.IGNORECASE):
+        value = "https://" + value
+    if re.match(r"^https?://", value, re.IGNORECASE):
+        parts = urlsplit(value)
+        if parts.hostname is None or parts.hostname.lower() not in {"doi.org", "dx.doi.org", "www.doi.org"}:
+            raise ValueError("Use a DOI or a doi.org URL, not a publisher webpage.")
+        value = unquote(parts.path.lstrip("/"))
+    if not re.fullmatch(r"10\.\d{4,9}/[^\s\x00-\x1f\x7f]+", value, flags=re.IGNORECASE):
+        raise ValueError("Enter a DOI such as 10.1234/example or https://doi.org/10.1234/example.")
+    return value.lower()
+
+
+def manual_record_row(record):
+    if not isinstance(record, dict) or record.get("type") != "journal-article":
+        raise ValueError("The DOI must identify a journal article in Crossref.")
+    doi = normalize_doi(record.get("DOI", ""))
+    journal_name = plain_text(" ".join(record.get("container-title", [])))
+    if not journal_name:
+        raise ValueError(f"Missing journal name for {doi}; this record cannot be used in a journal project.")
+    return _record_row(record, doi, journal_name)
+
+
+def lookup_doi(value, cache=None, email=None):
+    """Preload the full Crossref record and validate export metadata once per DOI."""
+    doi = normalize_doi(value)
+    if cache is not None and doi in cache:
+        record = deepcopy(cache[doi])
+    else:
+        url = "https://api.crossref.org/works/" + quote(doi, safe="")
+        if email:
+            url += "?" + urlencode({"mailto": email})
+        try:
+            record = get_json(url, email)
+        except HTTPError as error:
+            if error.code == 404:
+                raise ValueError(f"DOI not found in Crossref: {doi}") from error
+            raise
+    row = manual_record_row(record)
+    if row["doi"] != doi:
+        raise ValueError(f"Crossref returned a different DOI for {doi}; no paper was selected.")
+    if cache is not None:
+        cache[doi] = deepcopy(record)
+    return deepcopy(record)
+
+
+def check_dois(text, cache=None, email=None):
+    """Check all unique newline-separated DOIs; keep successful lookups for retries."""
+    cache = {} if cache is None else cache
+    entries, errors, duplicates, seen = [], [], [], set()
+    for number, raw in enumerate(str(text).splitlines(), 1):
+        if not raw.strip():
+            continue
+        try:
+            doi = normalize_doi(raw)
+        except ValueError as error:
+            errors.append({"line": number, "input": raw, "error": str(error)})
+            continue
+        if doi in seen:
+            duplicates.append(doi)
+            continue
+        seen.add(doi)
+        entries.append((number, raw, doi))
+    def check(entry):
+        number, raw, doi = entry
+        try:
+            # New lookups use their own cache; only this caller updates the shared cache.
+            record = lookup_doi(doi, {doi: cache[doi]} if doi in cache else None, email)
+            return record, None
+        except Exception as error:
+            return None, {"line": number, "input": raw, "error": str(error)}
+    records = []
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for record, error in pool.map(check, entries):
+            if error:
+                errors.append(error)
+            else:
+                records.append(record)
+                cache[normalize_doi(record["DOI"])] = deepcopy(record)
+    return {"records": records, "errors": sorted(errors, key=lambda item: item["line"]), "duplicates": duplicates}
+
+
+def manual_overview(records):
+    """Summarize explicit choices; retain input order and merge journal ISSN aliases."""
+    rows, unique, seen, journals = [], [], set(), []
+    for record in records:
+        row = manual_record_row(record)
+        if row["doi"] in seen:
+            continue
+        seen.add(row["doi"])
+        rows.append(row)
+        unique.append(record)
+        identifiers = set(record.get("ISSN", []))
+        matches = [item for item in journals if row["journal"].casefold() in
+                   {name.casefold() for name in [item["name"], *item["aliases"]]}
+                   or identifiers.intersection(item["issns"])]
+        if matches:
+            group = matches[0]
+            for other in matches[1:]:
+                group["paper_count"] += other["paper_count"]
+                group["issns"] = sorted(set(group["issns"]) | set(other["issns"]))
+                group["aliases"].extend([other["name"], *other["aliases"]])
+                journals.remove(other)
+        else:
+            group = {"name": row["journal"], "aliases": [], "issns": [], "paper_count": 0}
+            journals.append(group)
+        if row["journal"] != group["name"]:
+            group["aliases"].append(row["journal"])
+        group["aliases"] = list(dict.fromkeys(group["aliases"]))
+        group["issns"] = sorted(set(group["issns"]) | identifiers)
+        group["paper_count"] += 1
+    years = [int(row["year"]) for row in rows]
+    dates = [publication_date(record, "first")[0] for record in unique]
+    return {"rows": rows, "records": unique, "journals": journals, "paper_count": len(rows),
+            "year_start": min(years) if years else None, "year_end": max(years) if years else None,
+            "start_date": min(dates) if dates else None, "end_date": max(dates) if dates else None,
+            "multiple_journals": len(journals) > 1}
+
+
+def manual_project_folder_name(overview):
+    label = overview["journals"][0]["name"] if len(overview["journals"]) == 1 else "multiple-journals"
+    created = datetime.now(ZoneInfo("Europe/Zurich")).date()
+    return f"{created:%d%m%Y}_journalanalysis_{slugify(label)}_{overview['start_date']}_{overview['end_date']}_manual"
+
+
+def create_manual_project(records, projects_root, *, project_name=None, template_path=None):
+    """Create a project solely from preloaded records: no API calls or random sampling."""
+    overview = manual_overview(records)
+    if not overview["paper_count"]:
+        raise ValueError("Select at least one checked DOI before creating a manual project.")
+    rows, records = overview["rows"], overview["records"]
+    if len({row["bibtex_key"] for row in rows}) != len(rows):
+        raise ValueError("BibTeX key collision; no project created.")
+    name = manual_project_folder_name(overview) if project_name is None else project_name
+    _, destination, template = _prepare_project(projects_root, name, template_path)
+    label = overview["journals"][0]["name"] if not overview["multiple_journals"] else "Multiple journals"
+    stem = f"{slugify(label)}_{overview['start_date']}_{overview['end_date']}_manual"
+    selected_stem = f"{stem}_selected{len(rows)}"
+    created = datetime.now(timezone.utc).isoformat()
+    config = {"schema_version": 1, "selection_method": "manual", "journal": label,
+              "journals": overview["journals"], "issns": sorted({issn for item in overview["journals"] for issn in item["issns"]}),
+              "start_date": str(overview["start_date"]), "end_date": str(overview["end_date"]), "date_basis": "first",
+              "year_range": [overview["year_start"], overview["year_end"]], "sample_size": len(rows),
+              "seed": None, "include_notices": True, "created_at_utc": created,
+              "full_export": f"output/{stem}.csv", "sample_export": f"output/{selected_stem}.csv",
+              "selection_export": f"output/{selected_stem}.csv"}
+    selection = {"selection_method": "manual", "sampling": "explicit DOI selection; no random sampling",
+                 "source_entry_count": len(rows), "eligible_entry_count": len(rows), "selected_entry_count": len(rows),
+                 "seed": None, "include_notices": True, "excluded_notices": [], "created_at_utc": created,
+                 "selected_dois": [row["doi"] for row in rows], "selected_bibtex_keys": [row["bibtex_key"] for row in rows]}
+    report = {**config, "source": "Crossref metadata preloaded during DOI lookup", "queries": [],
+              "raw_record_count": len(records), "entry_count": len(rows), "matching_dois_and_keys_verified": True,
+              "multiple_journals_warning": overview["multiple_journals"],
+              "coverage_note": "Only the explicitly selected DOIs; not a complete journal export or random sample."}
+    result = _write_project(destination, template, config, rows, rows, selection, records, report)
+    result["overview"] = overview
+    return result

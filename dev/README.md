@@ -150,3 +150,26 @@ the locked project save folder. It does not use the system clipboard. Pass
 `--browser-executable` to use an installed Chrome/Chromium instead of downloading
 a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
 optional browser check; the compatibility workflow runs the unit/service suite.
+
+## Manual DOI projects
+
+`app/journal_tools.py` implements DOI normalization, full-record lookup/cache,
+ordered bulk validation, journal/year overview and `create_manual_project`.
+Both creation modes share row serialization and transactional folder publication;
+manual creation has no network or random-sampling step. Keep the schema-1
+`sample_export` contract so generated projects work with the self-contained
+categorization notebook. Manual records retain selection order and notices.
+
+`dev/tests/test_manual_projects.py` tests DOI URL formats, metadata validation,
+cache reuse and partial failures, explicit-selection exports, multiple journals,
+no-network creation, rollback and notebook callbacks. The optional browser check
+also exercises actual Enter-key submission and the rich result dropdown:
+
+```bash
+python dev/check_manual_project.py
+```
+
+Install `dev/requirements-browser.txt` and Chromium first, as described above.
+`--browser-executable` and `--artifacts` work as in the layout check. This uses
+synthetic metadata, blocks duplicate API lookups, and verifies selected-paper
+exports after browser-driven creation. It makes no external metadata requests.

@@ -22,7 +22,8 @@ use, see the [user guide](../README.md).
 
 Custom project folder names use the same portable character rules on both
 platforms. Trailing dots and Windows device names such as `CON`, `NUL` and
-`COM1` are rejected on macOS as well, before metadata is fetched.
+`COM1` are rejected on macOS as well. Random-mode names are checked before
+metadata is fetched; manual-mode names are checked before files are written.
 
 CSV files use UTF-8 with a BOM for Excel. Full and sampled paper metadata are
 kept in `output/`. Choose your own folders and files for PDFs and analysis
@@ -78,6 +79,48 @@ row order changes. For exact replay without fetching again, supply the saved
 The code example shows constructing a `Journal` directly for a fully offline
 replay, which also avoids journal lookup.
 
+## Manual DOI selection
+
+The project notebook also accepts an explicit paper selection. Bare DOIs,
+`doi:` prefixes and doi.org/dx.doi.org URLs normalize to the same lowercase
+identity. Resolver URL encoding is decoded; DOI suffix punctuation is retained.
+Publisher URLs and whitespace-separated identifiers are rejected. Use one DOI
+per line in bulk mode. Duplicate identities are included once, in selection
+order, without random sampling or notice filtering.
+
+Each lookup fetches the full Crossref `/works/{doi}` record and validates the
+journal-article type, matching DOI, title, journal name and usable publication
+date. Author, abstract and export metadata are available from the same record;
+missing optional fields remain empty. Records without ISSNs can still be used
+when their journal name and other required metadata are present. Crossref-only
+coverage means some valid DOIs cannot be resolved by this tool.
+
+Successful results are cached for the current kernel session. Bulk checks use
+up to three concurrent requests and report every failed line; cached successes
+are retained when a list needs correction. No papers from an invalid list are
+added. Editing a nonempty DOI list requires a new check before creation. Clearing
+that input leaves the explicitly selected papers available. A pending single
+search result becomes selected only through **Add paper**.
+
+Before creation, the overview lists journal names with paper counts, total
+papers and bibliography-year range (print year when available). Journal groups
+merge matching names or shared ISSNs. Multiple journals produce a visible
+warning. Date bounds in `project.json` use the earliest-known publication dates
+of the chosen papers; random-mode dates and count do not filter manual choices.
+
+Creation uses only the preloaded records, with no further API request. The same
+transactional publication and CSV/BibTeX identity checks apply to both modes.
+Manual exports use a `_manual` stem, with `_selected<N>.csv`, `.bib` and
+`_selection.json` for the selected list. Both full and selected exports describe
+the chosen papers. Raw Crossref metadata remains archived alongside them.
+
+The schema-1 manifest adds `selection_method: "manual"`, journal groups and a
+bibliography-year range. `seed` is null. `sample_export` and `selection_export`
+both reference the selected-paper CSV, preserving compatibility with existing
+categorization notebooks. Reports and the project README identify the selection
+as manual, retain the multi-journal warning, and do not claim complete journal
+coverage or a random draw. The project still creates no PDF or analysis folders.
+
 ## Text cleanup and counting
 
 Start the **Clean and count text** service, or open a project's
@@ -130,7 +173,7 @@ request and fills unassigned units. A parent assignment propagates only when
 
 The notebook searches its working directory and ancestors for a supported
 `project.json`, or reads the project selected in **Project folder**. The
-manifest's `sample_export` CSV supplies the sampled paper list, with its saved
+manifest's `sample_export` CSV supplies the project paper list, with its saved
 sample size (10 or any other chosen number). DOI links each paper to its saved
 categorization. **Start / reopen paper** opens the newest saved JSON for that
 DOI; **Associate current text** attaches an already pasted paper without clearing

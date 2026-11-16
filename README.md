@@ -1,7 +1,7 @@
 # Journal Analysis Tools
 
-Create a random sample of papers from a journal, or clean text copied from a PDF
-and count its words and paragraphs, or categorize a whole paper by section.
+Create journal projects from a random sample or your own DOI selection, clean
+text copied from PDFs, and categorize whole papers by section.
 
 ## Open the app
 
@@ -35,7 +35,8 @@ also copy the address beside it and paste it into your browser.
 ## Create a journal project
 
 1. Start **Create journal project** and run all notebook cells.
-2. Enter the journal title or ISSN, click **Find journal**, and select the journal.
+2. Choose **Random journal sample**, enter the journal title or ISSN, click
+   **Find journal**, and select the journal.
 3. Choose the start and end dates, the number of papers, and where to save the
    project. Both dates are included.
 4. Click **Create project**.
@@ -45,6 +46,33 @@ also copy the address beside it and paste it into your browser.
 Existing projects are never overwritten. Paper information comes from Crossref;
 PDFs are not downloaded. Finding journals and fetching paper information require
 an internet connection.
+
+## Create a project from your own papers
+
+1. Start **Create journal project**, run all cells, and choose **Manual DOI selection**.
+2. Use either entry method:
+   - **Search one DOI:** paste a DOI or full `https://doi.org/...` URL and press
+     **Enter** (or **Search DOI**). Review the dropdown result, which shows a bold
+     title plus journal, year and DOI, then click **Add paper**. Repeat as needed.
+   - **Paste DOI list:** paste one DOI or DOI URL per line and click **Check and
+     add DOI list**. Correct any listed errors and check again. A list is added
+     only when all its entries validate; repeated DOIs are included once.
+3. Review **Selected papers** and remove any unwanted entries. The overview shows
+   journal names, number of papers and year range. A warning appears when papers
+   come from multiple journals; you can still create that project.
+4. Choose the projects parent and optional project folder name, then click
+   **Create project**.
+
+Lookup preloads the available metadata for exports, including authors and
+abstracts. Successful checks are reused when you retry a list or search the same
+DOI. Creation uses those preloaded records without fetching them again. Keep the
+notebook kernel running until creation; restarting it clears the selection and
+lookup cache. DOIs must resolve to journal articles in Crossref.
+
+Manual projects retain exactly the chosen papers, including explicitly selected
+notices; they are not random samples. Their selected-paper exports use
+`_selected<N>` names in `output/`. Open the project's categorization notebook to
+select these papers in **Save and reload** just as with randomly sampled papers.
 
 ## Clean and count text
 
@@ -69,7 +97,7 @@ clean-and-count workflow remains in **Clean & count (original)**.
    folder**. A notebook opened inside a generated journal project detects that
    project automatically. When using the central launcher, select your project
    folder here.
-2. Select one of the randomly sampled papers and click **Start / reopen paper**.
+2. Select one of the project’s papers and click **Start / reopen paper**.
    This opens its latest saved categorization, or prepares a new paper. To attach
    text you have already pasted, use **Associate current text** instead.
 3. Paste the whole paper into **Original paper**, excluding table text, figure

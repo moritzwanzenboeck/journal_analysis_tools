@@ -121,13 +121,16 @@ notebook and choose the existing project in **Project folder**.
 | The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
 | The app cannot find Python or a required package | Reinstall `requirements.txt` using the `.venv` Python command above. |
 | The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
-| No sampled papers appear | Select the generated project folder and click **Scan project folder**. It needs its original `project.json` and the CSV named by `sample_export`. The central launcher cannot infer which project you want. |
+| No project papers appear | Select the generated project folder and click **Scan project folder**. It needs its original `project.json` and the CSV named by `sample_export`. The central launcher cannot infer which project you want. |
 | A saved paper is missing from the JSON list | Scan again after saving externally. Only full-paper categorization JSON is listed, not Crossref or sampling reports. You can also load a file by path or upload. |
 | Saving reports that files exist | Review the paper prefix and enable **Overwrite existing files** only to replace that saved pair. All saves in a project use `paper_categorizations/`. |
 | Loading or changing paper reports unsaved work | Save the current paper first, or explicitly enable **Allow replacing the current unsaved paper**. |
 | Counts disappear after editing cleaned text | Review the headings and click **Apply reviewed outline** to rebuild counts and assignments. |
 | A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
 | A long title list is clipped | Scroll vertically within its summary cell. On a narrow window, scroll the whole table horizontally. Buttons retain their positions. |
+| A DOI lookup fails | Use a bare DOI or doi.org URL. The DOI must be a journal article registered with Crossref and have title, journal and publication-date metadata. Publisher webpages are not DOI URLs. |
+| The manual Create button is disabled | Add at least one checked paper. Correct and recheck any nonempty bulk list, or clear that input to proceed with the existing selection. |
+| Manual DOI selection disappears | Restarting or rerunning the notebook clears the in-memory selection/cache. Keep the kernel running until creation; completed projects retain their archived metadata. |
 | The copy button cannot access the clipboard | Select the displayed count and copy it manually. The notebook must run on your own computer to use its clipboard. |
 | The app fails after the tools folder was moved | Keep the precompiled app beside `notebook_launcher.py` and `app/`. Recreate `.venv` if its old environment no longer works after moving. Source-built, separately installed apps may need rebuilding. |
 | macOS blocks the app | For an app you trust, use the approval offered in **System Settings → Privacy & Security**, following your organisation's policy. |
