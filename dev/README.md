@@ -173,3 +173,10 @@ Install `dev/requirements-browser.txt` and Chromium first, as described above.
 `--browser-executable` and `--artifacts` work as in the layout check. This uses
 synthetic metadata, blocks duplicate API lookups, and verifies selected-paper
 exports after browser-driven creation. It makes no external metadata requests.
+
+The project notebook checks `PROJECT_NOTEBOOK_API_VERSION` at startup and reloads
+an older imported backend before creating controls. Keep its expected version
+and the backend marker aligned whenever project-backend behavior changes. This matters when
+a user reruns cells in a kernel started before an update. Lookup setup and form
+refresh both need exception handling: every failure must release the busy flag
+and buttons, display an error, and permit another search without kernel restart.

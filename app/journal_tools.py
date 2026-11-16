@@ -30,6 +30,9 @@ from urllib.parse import quote, urlencode, unquote, urlsplit
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+# Increment with the required version in the project notebook when its backend API changes.
+PROJECT_NOTEBOOK_API_VERSION = 1
+
 FIELDS = (
     "bibtex_key", "doi", "title", "authors", "journal", "year", "volume",
     "issue", "pages", "article_number", "publication_date", "date_source",

@@ -51,6 +51,11 @@ tools.get_json = _offline_get_json
 '''
         notebook=json.loads((ROOT/'create_journal_analysis.ipynb').read_text(encoding='utf-8'))
         notebook['cells'].insert(3,{'cell_type':'code','id':'offline-doi-fixtures','metadata':{},'execution_count':None,'outputs':[],'source':preload.splitlines(True)})
+        # Reproduce a kernel holding the backend from before manual DOI support.
+        notebook['cells'].insert(2,{'cell_type':'code','id':'stale-import-fixture','metadata':{},'execution_count':None,'outputs':[],
+            'source':["from app import journal_tools as _old_tools\n",
+                      "del _old_tools.PROJECT_NOTEBOOK_API_VERSION\n",
+                      "del _old_tools.lookup_doi\n", "del _old_tools.manual_overview\n"]})
         (root/'create_journal_analysis.ipynb').write_text(json.dumps(notebook),encoding='utf-8')
         service=NotebookService(next(s for s in SERVICES if s.key=='project'),root,log_dir=Path(temporary)/'logs')
         try:
@@ -102,7 +107,7 @@ tools.get_json = _offline_get_json
                 assert [row['doi'] for row in rows]==['10.1234/first','10.1234/second']
                 assert all(row['abstract']=='Preloaded abstract.' for row in rows)
                 browser.close()
-            (stage/'manual-browser-result.json').write_text(json.dumps({'status':'passed','checks':['Enter triggers lookup','bold title and structured DOI dropdown','bulk all-or-nothing validation','cached retry','mixed-journal overview','offline project creation','selected-paper exports']}))
+            (stage/'manual-browser-result.json').write_text(json.dumps({'status':'passed','checks':['stale import refreshed before form startup','Enter triggers lookup','bold title and structured DOI dropdown','bulk all-or-nothing validation','cached retry','mixed-journal overview','offline project creation','selected-paper exports']}))
             print('Manual project browser checks passed.')
         finally:
             service.force_stop()

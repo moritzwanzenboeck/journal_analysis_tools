@@ -5,6 +5,7 @@ from datetime import date
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -135,10 +136,51 @@ class ManualProjectTests(unittest.TestCase):
             self.assertEqual(list(root.iterdir()),[])
 
 
+class BackendRefreshTests(unittest.TestCase):
+    def test_running_old_import_is_refreshed_before_controls_are_created(self):
+        import app
+        old_backend=SimpleNamespace(__name__='app.journal_tools')
+        with patch.object(app,'journal_tools',old_backend), patch('importlib.reload',return_value=tools) as reload:
+            state=execute_notebook('create_journal_analysis.ipynb')
+        reload.assert_called_once_with(old_backend)
+        self.assertIs(state['tools'],tools)
+        state['project_mode'].value='manual'
+        state['manual_doi_query'].value='10.1080/example.1'
+        with patch.object(tools,'get_json',return_value=article()):state['manual_search_button'].click()
+        self.assertFalse(state['manual_state']['busy'])
+        self.assertEqual(len(state['manual_result_dropdown'].children),1)
+
+    def test_mismatched_files_fail_early_with_an_actionable_error(self):
+        import app
+        old_backend=SimpleNamespace(__name__='app.journal_tools')
+        with patch.object(app,'journal_tools',old_backend), patch('importlib.reload',return_value=old_backend), \
+                self.assertRaisesRegex(RuntimeError,'Update the complete tools folder'):
+            execute_notebook('create_journal_analysis.ipynb')
+
+
 class ManualFormTests(unittest.TestCase):
     def setUp(self):
         self.s=execute_notebook('create_journal_analysis.ipynb')
         self.s['project_mode'].value='manual'
+
+    def test_preview_setup_failure_releases_both_lookup_paths_and_allows_retry(self):
+        s=self.s
+        s['manual_doi_query'].value='10.1080/example.1'
+        s['manual_bulk_input'].value='10.1080/example.1'
+        def broken_preview(*args,**kwargs):raise RuntimeError('Preview unavailable')
+        with patch.dict(s,{'update_preview':broken_preview}):
+            for button,status in ((s['manual_search_button'],s['manual_search_status']),
+                                  (s['manual_bulk_button'],s['manual_bulk_status'])):
+                button.click()
+                self.assertFalse(s['manual_state']['busy'])
+                self.assertFalse(s['manual_search_button'].disabled)
+                self.assertFalse(s['manual_bulk_button'].disabled)
+                self.assertIn('Preview unavailable',status.value)
+                self.assertNotIn('Looking up',status.value)
+                self.assertNotIn('Checking all',status.value)
+        with patch.object(tools,'get_json',return_value=article()):s['manual_search_button'].click()
+        self.assertFalse(s['manual_state']['busy'])
+        self.assertEqual(len(s['manual_result_dropdown'].children),1)
 
     def test_enter_search_rich_dropdown_selection_and_cached_lookup(self):
         s=self.s;s['manual_doi_query'].value='https://doi.org/10.1080/example.1'

@@ -128,6 +128,7 @@ notebook and choose the existing project in **Project folder**.
 | Counts disappear after editing cleaned text | Review the headings and click **Apply reviewed outline** to rebuild counts and assignments. |
 | A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
 | A long title list is clipped | Scroll vertically within its summary cell. On a narrow window, scroll the whole table horizontally. Buttons retain their positions. |
+| DOI lookup stays on “Looking up…” after updating the tools | Reload the updated notebook page and run all cells. Startup refreshes an outdated imported backend; keep the notebook and `app/` files together. Lookup errors release both search buttons so you can retry. |
 | A DOI lookup fails | Use a bare DOI or doi.org URL. The DOI must be a journal article registered with Crossref and have title, journal and publication-date metadata. Publisher webpages are not DOI URLs. |
 | The manual Create button is disabled | Add at least one checked paper. Correct and recheck any nonempty bulk list, or clear that input to proceed with the existing selection. |
 | Manual DOI selection disappears | Restarting or rerunning the notebook clears the in-memory selection/cache. Keep the kernel running until creation; completed projects retain their archived metadata. |

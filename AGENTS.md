@@ -49,3 +49,8 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   fetch again or sample/filter explicit choices. Show the journal/count/year
   overview and multi-journal warning before creation. Keep manual project exports
   compatible with the categorization notebook's `sample_export` contract.
+
+- When project-backend behavior changes, bump `PROJECT_NOTEBOOK_API_VERSION` in
+  the backend and its required value in the project notebook. Older running
+  kernels must reload the backend before showing controls. Keep lookup setup
+  inside exception handling so failed previews cannot leave buttons disabled.
