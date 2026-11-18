@@ -862,3 +862,37 @@ def paper_make_markdown_document(markdown_text, *, previous=None, **settings):
     for unit,label in zip(doc["units"],labels):
         unit["category"] = label if label in paper_labels(doc) else PAPER_UNASSIGNED
     return doc
+
+
+
+def paper_apply_outline(markdown_text, outline_text):
+    """Apply reviewed level | exact-title entries to the Markdown heading view.
+
+    Existing marked occurrences take precedence over identical body lines.
+    Omitting an entry removes its marker but retains the actual title text.
+    """
+    text = normalize_newlines(markdown_text)
+    if not text.strip():
+        raise ValueError("Paste or load paper text first.")
+    headings = paper_parse_outline(outline_text)
+    existing = paper_markdown_headings(text,strict=True)
+    marked = {h["line"]-1:h for h in existing}
+    lines = text.split("\n")
+    for line,heading in marked.items():
+        lines[line] = heading["title"]
+    chosen, cursor = {}, 0
+    for index,heading in enumerate(headings):
+        candidates = [i for i in range(cursor,len(lines)) if lines[i].strip() == heading["title"]]
+        preferred = [i for i in candidates if i in marked]
+        remaining = sum(item["title"] == heading["title"] for item in headings[index:])
+        found = preferred[0] if len(preferred) >= remaining else candidates[0] if candidates else None
+        if found is None:
+            raise ValueError(f"Heading not found in document order on its own line: {heading['title']!r}. Use the exact title from Cleaned paper; rename titles there.")
+        chosen[found] = heading
+        cursor = found + 1
+    result = "\n".join("#"*chosen[i]["level"] + " " + chosen[i]["title"] if i in chosen else line
+                       for i,line in enumerate(lines))
+    actual = paper_markdown_headings(result,strict=True)
+    if [(h["level"],h["title"]) for h in actual] != [(h["level"],h["title"]) for h in headings]:
+        raise ValueError("The outline includes a heading inside a fenced text block. Move the heading outside that block in Cleaned paper first.")
+    return result

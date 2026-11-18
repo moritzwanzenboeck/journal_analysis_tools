@@ -145,6 +145,15 @@ clean-and-count workflow remains in **Clean & count (original)**.
    For papers without headings, insert your own heading lines at the boundaries
    you want to categorize. Markdown prefixes are excluded from counts and the
    saved cleaned-text file.
+   Alternatively, use **Review / correct heading outline**. Enter one
+   `level | exact heading title` per line, for example `1 | Introduction` and
+   `2 | Background`, then click **Apply reviewed outline**. Add missed titles
+   from their own lines in Cleaned paper, change levels, or remove entries to
+   unmark headings. Rename titles directly in Cleaned paper. The outline follows
+   Markdown edits automatically; pending outline drafts stay intact until you
+   apply them or click **Refresh from Markdown**. Apply or refresh a draft before
+   copying the summary or saving.
+
 5. Assign each section or subsection to Introduction, Literature Review, Theory,
    Data, Methods, Results, Discussion, Conclusion or Not categorizable. **Apply to subsections**
    assigns a parent and its descendants; individual labels can then be changed.

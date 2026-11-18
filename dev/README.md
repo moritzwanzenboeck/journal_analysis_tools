@@ -273,3 +273,13 @@ python dev/check_paper_layout.py --without-abort-signal-any
 
 Run the same check without the flag for a normal browser. Install runtime
 requirements in the isolated test environment; anywidget is not required.
+
+
+## Alternative heading outline
+
+`paper_apply_outline` validates `level | exact title` entries and maps them back
+to Markdown prefixes without dropping prose. The notebook keeps automatic
+Markdown-to-outline synchronization separate from pending drafts; copying and
+saving wait until a draft is applied or refreshed. `dev/tests/test_heading_outline.py`
+checks duplicate occurrences, invalid ordering, draft protection, virtual labels
+and category retention. The browser workflow also exercises the outline field.

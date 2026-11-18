@@ -179,6 +179,22 @@ title is entered. The previous valid document remains available while typing.
 Parent assignments propagate through **Apply to subsections**; child labels
 remain editable.
 
+The alternative **Review / correct heading outline** field uses one
+`level | exact title` entry per line, in document order. **Apply reviewed outline**
+rewrites only Markdown heading markers: changing a level updates its prefix,
+adding an entry marks an existing own-line title, and omission unmarks a title
+while retaining its words. Titles must already exist; rename them in the text.
+Existing marked occurrences are preferred over identical body lines unless extra
+occurrences are explicitly requested. Invalid/out-of-order titles or headings
+inside fenced text blocks are rejected without changing the editor or model.
+
+The outline follows valid Markdown changes automatically. An edited outline is
+a draft and is not overwritten by further Markdown edits. Apply it or use
+**Refresh from Markdown** to replace it with the current headings. Pending drafts
+block copying/saving and count as unsaved work for paper switching. Loading a
+paper resets the outline from its stored sections, including legacy virtual
+labels. The alternative editor uses the same native widgets as the Markdown view.
+
 ### Project-aware selection and persistence
 
 The notebook searches its working directory and ancestors for a supported
