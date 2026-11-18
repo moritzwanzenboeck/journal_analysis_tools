@@ -25,7 +25,11 @@ def main():
         # Copy only the notebook: the browser may autosave outputs in this scratch copy.
         root = Path(temporary) / 'tools'
         root.mkdir()
-        (root / 'clean_and_count_text.ipynb').write_bytes((ROOT / 'clean_and_count_text.ipynb').read_bytes())
+        notebook=json.loads((ROOT/'clean_and_count_text.ipynb').read_text(encoding='utf-8'))
+        # Exercise copy fallback without changing the user's real clipboard.
+        code=next(c for c in reversed(notebook['cells']) if c['cell_type']=='code')
+        code['source']=''.join(code['source']) + "\n_browser_which = shutil.which\nshutil.which = lambda name, *a, **kw: None if name in {'pbcopy','clip.exe'} else _browser_which(name,*a,**kw)\n"
+        (root/'clean_and_count_text.ipynb').write_text(json.dumps(notebook),encoding='utf-8')
         project=stage/'browser-project'
         (project/'output').mkdir(parents=True,exist_ok=True)
         (project/'project.json').write_text(json.dumps({'schema_version':1,'journal':'Browser Test Journal','sample_export':'output/random10.csv'}))
@@ -159,14 +163,33 @@ def main():
                 page.wait_for_function("document.body.textContent.includes('Saved reloadable JSON:')")
                 page.get_by_role('tab',name='Project summary',exact=True).click()
                 page.wait_for_function("document.body.textContent.includes('1/10 papers saved')")
-                assert 'Browser paper 2' in page.locator('table').last.inner_text()
+                assert page.locator('.project-report-overview tbody tr').count()==10
+                assert 'Browser paper 2' in page.locator('.project-report-overview tbody tr').nth(1).locator('th').get_attribute('title')
+                # Spreadsheet-shaped report: fixed controls, top-level metrics, summaries and copying.
+                overview=page.locator('.project-report-overview')
+                assert overview.locator('thead th').all_text_contents()==['Article no.','Total sections','Total word count','Total paragraphs','Total words in titles','Words per title','Words per abstract','Status']
+                assert page.locator('.project-report-category').count()==10
+                assert page.locator('.project-report-statistics').count()==10
+                assert not any('#DIV/0!' in text for text in page.locator('.project-report-overview,.project-report-category').all_text_contents())
+                report_buttons=page.get_by_role('button',name='Copy table (Excel)',exact=True)
+                def report_bounds():
+                    return report_buttons.evaluate_all("es=>es.map(e=>{const p=e.parentElement.getBoundingClientRect(),r=e.getBoundingClientRect();return {x:r.x-p.x,y:r.y-p.y,w:r.width,h:r.height}})")
+                positions=report_bounds()
+                page.get_by_role('button',name='Refresh project summary',exact=True).click()
+                page.wait_for_timeout(300)
+                assert positions==report_bounds()
+                page.get_by_role('button',name='Copy whole report (Excel)',exact=True).click()
+                page.wait_for_function("document.body.textContent.includes('Clipboard unavailable')")
+                assert 'Article overview' in page.get_by_role('textbox',name='Copy manually:',exact=True).input_value()
+                assert positions==report_bounds()
+                overview.screenshot(path=str(stage/'article-overview.png'))
                 page.get_by_role('textbox',name='Custom categories:',exact=True).fill('')
                 page.get_by_role('button',name='Save project categories',exact=True).click()
                 page.wait_for_function("document.body.textContent.includes('1 saved assignment(s) reset to Unassigned')")
                 page.get_by_role('tab',name='Categorize full paper',exact=True).click()
                 expect(selected_row.locator('select')).to_have_value('Unassigned')
                 assert (project/'paper_categorizations/categories.json').exists()
-                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder','Unicode browser selection','heading mark/remove','selected-text reassignment/removal','project categories and saved assignment rewrite','project-wide summary']}))
+                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder','Unicode browser selection','heading mark/remove','selected-text reassignment/removal','project categories and saved assignment rewrite','project-wide summary','article overview and category statistics','report copying and stable controls']}))
                 print('Browser layout checks passed.'+(' Artifacts: '+str(stage) if args.artifacts else ''))
                 browser.close()
         except Exception:

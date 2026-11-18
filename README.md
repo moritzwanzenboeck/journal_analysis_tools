@@ -139,11 +139,25 @@ its assignments to **Unassigned** in the current paper and every saved
 categorization in that project. The editor warns about this before you apply
 changes. Custom categories appear before the final **Not categorizable** row.
 
-The **Project summary** tab shows category totals across all project papers and
-a table for each paper. It uses the latest saved JSON per DOI, lists missing or
-incomplete papers and provides copy buttons and an Excel export. Save the current
-paper first; unsaved edits are excluded. Click **Refresh project summary** after
-changes made in another notebook.
+The **Project summary** tab starts with an article overview: section count, word
+and paragraph totals, total words in section titles, words per title and abstract
+length. Only top-level sections contribute to section/title statistics. There is
+no Content column. Body totals include assigned subsections and follow each
+paper's heading-word setting; Unassigned and excluded text are omitted.
+
+Each category, including custom categories, has its own per-article table with
+words per title, total words and paragraphs. Its Summary row shows the average,
+minimum and maximum word count across papers where that category is present;
+zero-word and missing entries are excluded. An **x** marks every minimum/maximum
+tie. Missing analyses and unavailable abstracts show a dash; undefined averages
+never produce division errors. Abstracts use a cleaned Abstract section when
+available, then the project's saved metadata.
+
+Copy the whole report or an individual table into Excel. The earlier aggregate
+category/title grid is available under **Aggregate category totals and titles**.
+The report uses the latest saved JSON per DOI. Save the current paper first;
+unsaved edits are excluded. Click **Refresh project summary** after changes made
+in another notebook.
 
 Selected-text boundaries are saved in JSON alongside the categories. Remove
 them before editing the prose, or use **Reset text boundaries** afterward to

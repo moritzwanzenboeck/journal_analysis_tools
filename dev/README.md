@@ -244,3 +244,16 @@ reasons in the selection report; full metadata exports are kept for auditing.
 Project settings belong in `paper_categorizations/categories.json`, and deleting
 a custom name must rewrite every saved assignment to Unassigned transactionally.
 Do not make ordinary category changes recreate fixed summary controls.
+
+
+## Project report tables
+
+`paper_report_metrics`, `paper_report_tables` and `paper_report_tsv` in
+`app/paper_tools.py` (mirrored inline) build the spreadsheet-shaped overview and
+category blocks. Count each actual assigned top-level title once, independently
+of parent-context titles and subsection headings. Virtual labels add no title
+words. Missing and zero values must remain distinct; positive category counts
+supply mean/min/max and all ties get markers. Abstracts come from cleaned text
+or existing metadata without a network lookup. `dev/tests/test_project_summary_report.py`
+covers these rules, report copying, metadata fallback and widget reuse.
+The browser layout check also covers report headers, rows and stable copy buttons.

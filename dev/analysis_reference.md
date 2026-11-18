@@ -260,13 +260,52 @@ authoritative when it is loaded or saved inside a project.
 
 ### Project summary
 
-The project-summary tab reads the paper identities from `sample_export` and
-chooses only the most recently modified saved categorization per DOI. Each
-contributes once, including when several versions exist in different subfolders.
-A missing paper or invalid newest JSON is reported rather than counted as a
-completed zero or silently replaced with an older version. Unassigned counts
-remain visible through each paper's status. Aggregate rows use the same counting
-rules and fixed copy controls as the individual-paper summary; title lists
-include the paper number. A separate all-paper table and TSV export retain
-paper title, DOI, completion status and category values. Unsaved editor state is
-excluded. The tab refreshes when opened and has an explicit refresh button.
+The project-summary tab reads identities and available abstracts from
+`sample_export` and chooses only the most recently modified saved categorization
+per DOI. A paper contributes once even if several versions exist. Missing
+papers and invalid newest JSON are reported rather than counted as completed
+zeros or silently replaced with an older file. Status identifies partial
+assignments. Unsaved editor state is excluded. The tab refreshes when opened
+and has an explicit refresh button. No metadata is fetched for this report.
+
+The article overview contains article number, total sections, total word count,
+total paragraphs, total words in titles, words per title, words per abstract
+and status. There is no Content column. Article-number tooltips identify the
+title/DOI; abstract-count tooltips identify the source.
+
+- Section and title statistics use **top-level units only** (`level == 1`)
+  assigned to normal categories, including custom labels and Not categorizable.
+  Subsections, preambles, Unassigned and excluded headings do not add sections
+  or title words. Context titles displayed for children do not count again.
+- A manually created top-level text section counts as a section. Its virtual
+  display title contributes no title words and is omitted from the title average.
+- Printed heading words use the existing WORD rule, including printed section
+  numbers. Words per title is total printed-title words divided by the number
+  of printed top-level titles; no titles means undefined, displayed as a dash.
+- Body totals sum normal-category word/paragraph counts across all levels,
+  counting each unit once. They respect each saved paper's heading-word option.
+  The separate title statistics remain available when that option is off.
+- Abstract length counts body words under an exact Abstract heading and its
+  descendants, excluding heading words, regardless of its assigned category.
+  If absent, the preloaded project CSV abstract is used, then optional saved
+  paper metadata. Missing abstracts are undefined, not invented zero lengths.
+  Abstracts should normally be marked Exclude from summary when they are to
+  remain outside body totals.
+
+Each normal/custom category has a table with article number, words per title,
+sum words, Average, Min, Max and paragraphs. Title averages use only that
+category's own printed top-level headings. The Summary row gives the mean,
+minimum and maximum of **positive category word counts** across saved papers.
+Missing/invalid papers and zero-word categories are excluded from these
+statistics. Partially assigned saved papers contribute their current category
+counts and retain their incomplete status in the article overview. Every tie
+gets `x` in the corresponding Min/Max column; a sole positive value is both.
+No positive entries means undefined statistics.
+
+Missing numeric values display a dash and copy as blank cells. Actual zero
+counts remain zero. Decimal output uses up to nine fractional digits without
+thousands separators or division-error strings. Whole-report TSV exports use
+vertical overview/category blocks, headers and Summary rows in display order.
+Individual tables can also be copied. TSV quoting preserves cell boundaries.
+Table cells have fixed heights and copy buttons stay in place during refresh.
+The earlier aggregate category/title grid remains in a collapsed accordion.

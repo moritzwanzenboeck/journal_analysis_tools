@@ -355,7 +355,7 @@ def paper_read_project(directory):
             if not doi or not title or doi in seen:
                 raise ValueError("The sample CSV contains missing or duplicate paper identities.")
             seen.add(doi)
-            paper = {key: (row.get(key) or "").strip() for key in ("title", "authors", "bibtex_key", "url")}
+            paper = {key: (row.get(key) or "").strip() for key in ("title", "authors", "bibtex_key", "url", "abstract")}
             paper.update(doi=doi, title=title, sample_number=number)
             papers.append(paper)
     save_directory = root / PAPER_PROJECT_SAVE_FOLDER
@@ -472,7 +472,7 @@ def paper_select_range(document, start, end, category, title="Selected text", le
     boundaries = deepcopy(document["manual_boundaries"])
     for pos, name in ((start, title.strip() or "Selected text"), (end, "Unheaded text")):
         next_heading = next((u["start"] for u in old if u["heading_line"] is not None and u["start"] >= pos), len(text))
-        if pos < len(text) and text[pos:next_heading].strip() and not any(unit["start"] == pos for unit in old):
+        if pos < len(text) and text[pos:next_heading].strip() and not any(unit["start"] == pos and unit["level"] for unit in old):
             boundaries.append({"offset": pos, "title": name, "level": level})
     headings = [{"title": u["title"], "level": u["level"], "line": u["heading_line"]} for u in old if u["heading_line"] is not None]
     units = paper_partition(text, headings, boundaries)
@@ -607,14 +607,14 @@ def paper_project_summary(context):
     papers, errors = [], []
     for paper in context["papers"]:
         item = next((s for s in saved if s["doi"] == paper["doi"]), None)
-        entry = {"paper": paper, "status": "Not saved", "rows": None, "path": None}
+        entry = {"paper": paper, "status": "Not saved", "rows": None, "path": None, "metrics": None}
         if item:
             try:
                 doc = paper_validate_document(json.loads(item["path"].read_text(encoding="utf-8-sig")))
                 doc = paper_set_categories(doc, categories)
                 rows = paper_summary(doc)
                 remaining = sum(u["category"] == PAPER_UNASSIGNED for u in doc["units"])
-                entry.update(rows=rows, path=item["path"], status=f"{remaining} unassigned" if remaining else "Complete")
+                entry.update(rows=rows, path=item["path"], metrics=paper_report_metrics(doc,paper), status=f"{remaining} unassigned" if remaining else "Complete")
                 for category, row in rows.items():
                     for key in ("section_titles", "subsection_titles"):
                         empty[category][key].extend(f"{paper['sample_number']}. {title}" for title in row[key])
@@ -625,3 +625,117 @@ def paper_project_summary(context):
                 errors.append(f"{item['relative_path']}: {error}")
         papers.append(entry)
     return {"rows": empty, "papers": papers, "errors": errors, "custom_categories": categories}
+
+
+
+def paper_abstract_count(document=None, metadata=None):
+    """Prefer the cleaned Abstract body (without its heading), then saved metadata."""
+    units = (document or {}).get("units", [])
+    abstract_units = set()
+    found = False
+    for index, unit in enumerate(units):
+        title = unit["title"].strip().rstrip(":")
+        numbered = PAPER_NUMBERED_TITLE.fullmatch(title)
+        title = numbered.group(2) if numbered else title
+        if title.casefold() != "abstract":
+            continue
+        found = True
+        abstract_units.add(index)
+        for child_index in range(index + 1,len(units)):
+            if units[child_index]["level"] <= unit["level"]:
+                break
+            abstract_units.add(child_index)
+    if found:
+        return {"words": sum(len(WORD.findall(units[index]["body"])) for index in abstract_units),
+                "source": "Cleaned paper"}
+    for source in (metadata or {}, (document or {}).get("paper_metadata", {})):
+        abstract = source.get("abstract")
+        if isinstance(abstract,str) and abstract.strip():
+            return {"words": len(WORD.findall(abstract)), "source": "Project metadata"}
+    return {"words": None, "source": "Not available"}
+
+
+def paper_report_metrics(document, metadata=None):
+    """Report actual assigned headings once; context and synthetic titles add no words."""
+    categories = paper_categories(document)
+    rows = paper_summary(document)
+    headings = []
+    for unit in document["units"]:
+        if unit["level"] and unit["category"] in categories:
+            headings.append({"level": unit["level"], "title": unit["title"], "category": unit["category"],
+                             "virtual": unit.get("virtual",False),
+                             "words": 0 if unit.get("virtual") else len(WORD.findall(unit["title"]))})
+    return {"words": sum(rows[cat]["words"] for cat in categories),
+            "paragraphs": sum(rows[cat]["paragraphs"] for cat in categories),
+            "headings": headings, "abstract": paper_abstract_count(document,metadata)}
+
+
+def paper_report_tables(summary):
+    """Spreadsheet-shaped article overview and one table per category.
+
+    Missing/invalid categorizations are blank. A missing category in a valid
+    saved paper is zero. Mean/min/max omit zero-word categories and missing files.
+    """
+    overview = {"key": "overview", "title": "Article overview", "columns": [
+        "Article no.", "Total sections",
+        "Total word count", "Total paragraphs", "Total words in titles", "Words per title", "Words per abstract", "Status"], "rows": [], "paper_info": [], "abstract_sources": []}
+    tables = [{"key":"category:" + cat,"category":cat,"title":cat,"columns":["Article no.","Words per title","Sum words","Average","Min","Max","Paragraphs"],"rows":[]}
+              for cat in paper_categories(summary)]
+    values = {cat:[] for cat in paper_categories(summary)}
+    for entry in summary["papers"]:
+        paper = entry["paper"]
+        metrics = entry.get("metrics")
+        headings = [h for h in metrics["headings"] if h["level"] == 1] if metrics else []
+        printed = [h for h in headings if not h["virtual"]]
+        abstract = metrics["abstract"] if metrics else paper_abstract_count(metadata=paper)
+        title_words = sum(h["words"] for h in printed)
+        overview["rows"].append([paper["sample_number"],len(headings) if metrics else None,
+            metrics["words"] if metrics else None,metrics["paragraphs"] if metrics else None,
+            title_words if metrics else None,title_words/len(printed) if printed else None,abstract["words"],entry["status"]])
+        overview["paper_info"].append(paper["title"] + " · " + paper["doi"])
+        overview["abstract_sources"].append(abstract["source"])
+        for table in tables:
+            category = table["category"]
+            if entry["rows"] is not None:
+                row = entry["rows"][category]
+                own = [h for h in printed if h["category"] == category]
+                words_per_title = sum(h["words"] for h in own)/len(own) if own else None
+                table["rows"].append([paper["sample_number"],words_per_title,row["words"],"","","",row["paragraphs"]])
+                if row["words"] > 0:
+                    values[category].append(row["words"])
+            else:
+                table["rows"].append([paper["sample_number"],None,None,"","","",None])
+    for table in tables:
+        counts = values[table["category"]]
+        low, high = (min(counts),max(counts)) if counts else (None,None)
+        # Mark every tie, including both columns when there is only one value.
+        for row in table["rows"]:
+            if row[2] is not None and row[2] > 0:
+                row[4] = "x" if row[2] == low else ""
+                row[5] = "x" if row[2] == high else ""
+        table["rows"].append(["Summary","","",sum(counts)/len(counts) if counts else None,low,high,""])
+    return [overview,*tables]
+
+
+def paper_report_value(value):
+    """Plain spreadsheet numbers, preserving up to nine fractional digits."""
+    if value is None:
+        return ""
+    if isinstance(value,float):
+        return format(value,".9f").rstrip("0").rstrip(".")
+    return str(value)
+
+
+def paper_report_tsv(tables):
+    """Copy the vertical report blocks as real TSV, with quoted multiline cells."""
+    import io
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer,delimiter="\t",lineterminator="\n")
+    for index,table in enumerate(tables):
+        if index:
+            writer.writerow([])
+        writer.writerow([table["title"]])
+        writer.writerow(table["columns"])
+        for row in table["rows"]:
+            writer.writerow([paper_report_value(value) for value in row])
+    return buffer.getvalue()

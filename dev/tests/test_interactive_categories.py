@@ -205,9 +205,9 @@ class ProjectCategoryTests(unittest.TestCase):
             s['paper_save_button'].click()
             s['workflow_tabs'].selected_index=2
             self.assertIn('1/2 papers saved',s['project_summary_status'].value)
-            self.assertIn('Institutions',s['project_summary_details'].value)
+            self.assertIn('category:Institutions',s['paper_state']['project_report_blocks'])
             with patch.object(s['shutil'],'which',return_value=None):s['project_summary_copy_button'].click()
-            self.assertIn('Sampled paper 1',s['project_summary_fallback'].value)
+            self.assertIn('Article overview',s['project_summary_fallback'].value)
             s['paper_custom_categories'].value='';s['paper_apply_categories_button'].click()
             self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Unassigned')
             self.assertIn(s['paper_project_folder'],s['paper_project_controls'].children)
