@@ -67,9 +67,11 @@ when available. Completeness and accuracy depend on publisher deposits.
 The sample is uniform without replacement across eligible DOIs. Obvious
 editorials, corrections, errata, retractions, withdrawals, publisher notes,
 acknowledgements, prefaces and special-issue notices are excluded by a title
-heuristic. The full export retains them. Review the exclusions in the selection
-report, or enable **Include notices and editorials**. This is not a full
-article-type classification. Asking for more papers than are eligible fails
+heuristic. The full export retains them. Publisher article-type labels also exclude non-scientific items, including
+front/back matter, contents, covers, book reviews and similar material. Review
+the DOI/title/reason entries in the selection report. There is no inclusion
+checkbox; legacy `include_notices=True` calls cannot bypass the exclusion.
+Incomplete publisher metadata can still require human review. Asking for more papers than are eligible fails
 without creating a partial project.
 
 Leave the seed blank for a fresh draw; the actual seed is always saved. The
@@ -86,7 +88,9 @@ The project notebook also accepts an explicit paper selection. Bare DOIs,
 identity. Resolver URL encoding is decoded; DOI suffix punctuation is retained.
 Publisher URLs and whitespace-separated identifiers are rejected. Use one DOI
 per line in bulk mode. Duplicate identities are included once, in selection
-order, without random sampling or notice filtering.
+order, without random sampling. Non-scientific articles are rejected during
+lookup, cached-record validation and creation using the same metadata/title
+rules as random projects.
 
 Each lookup fetches the full Crossref `/works/{doi}` record and validates the
 journal-article type, matching DOI, title, journal name and usable publication
@@ -148,7 +152,7 @@ from the distributed notebooks.
 
 The **Categorize full paper** tab uses the same punctuation, footnote, p-value
 and hyphen cleanup rules as the original workflow. It protects detected headings
-before joining body lines. It recognizes numbered headings and conservative
+before joining body lines. It recognizes numbered headings (including bare dotted numbers such as `2.2`) and conservative
 unnumbered candidates; this is a heuristic, so review the outline. Each outline
 entry has `level | exact heading title`, with levels 1–6. Duplicate titles are
 matched in order. Text before the first heading is a separate preamble unit.
@@ -160,7 +164,7 @@ Heading words are included by default and can be switched off; paragraph counts
 use body text only. Top-level titles appear as context alongside subsections in
 the summary even if the parent belongs to another category. Repeated context
 titles do not add words or paragraphs. Unassigned units need review; excluded
-units deliberately contribute no category totals. The nine summary rows remain
+units deliberately contribute no category totals. The nine default summary rows and any project custom-category rows remain
 fixed even when a category is empty. Copy buttons read current values.
 
 Editing the cleaned text or outline invalidates the displayed categorization
@@ -218,3 +222,51 @@ semicolon-separated lists within each tab-separated cell.
 DOI search results and selected-paper cards show all available author names,
 including organisation authors. Names are read from the preloaded record; no
 extra lookup is required. Missing author metadata displays **Not available**.
+
+
+### Selecting text and project categories
+
+The cleaned-paper editor uses an inline anywidget module, with no remote scripts.
+Browser UTF-16 selection offsets are converted to Python Unicode code points;
+a selection includes a snapshot of its text so stale selections cannot annotate
+a newer paper. Marking a title puts it on its own line and retains its words.
+Existing heading levels can be changed. Removing a boundary retains the text and
+resets the merged part to Unassigned. Clearing assignments resets whole parts
+intersecting the selection, while keeping their boundaries.
+
+Selecting body text creates virtual boundaries at its start and end as needed;
+no synthetic title is inserted into the cleaned text or counted as words. Select
+complete words; selections overlapping real heading lines are rejected. Existing
+headings and section dropdowns can be used to label such parts instead. Virtual
+boundaries must be removed before manually changing the prose. **Reset text
+boundaries** applies the current outline without the virtual boundaries and
+discards their assignments, so text edits never silently shift saved ranges.
+Schema-1 JSON adds optional `manual_boundaries` and `custom_categories`; old files
+without these fields remain supported. Structural offsets are recomputed and
+validated on load. The cleaned TXT retains the full prose.
+
+Project selection is above the workflow tabs and the paper/saved-file selectors
+are at the top of the full-paper tab. Project category names are stored in
+`paper_categorizations/categories.json`, separately from `project.json`.
+Default labels are reserved case-insensitively. Custom names are unique, 1–80
+characters, one per line, and precede the final Not categorizable category.
+Removing a name resets assignments in the active document and every recognized
+saved categorization JSON in the project, including older locations. All files
+are validated before publication; a failed write restores previous files.
+The setting and rewritten files are staged together. Original file modification
+times are retained to preserve the latest-version ordering. Standalone JSON
+retains its own custom category list for portability; project settings are
+authoritative when it is loaded or saved inside a project.
+
+### Project summary
+
+The project-summary tab reads the paper identities from `sample_export` and
+chooses only the most recently modified saved categorization per DOI. Each
+contributes once, including when several versions exist in different subfolders.
+A missing paper or invalid newest JSON is reported rather than counted as a
+completed zero or silently replaced with an older version. Unassigned counts
+remain visible through each paper's status. Aggregate rows use the same counting
+rules and fixed copy controls as the individual-paper summary; title lists
+include the paper number. A separate all-paper table and TSV export retain
+paper title, DOI, completion status and category values. Unsaved editor state is
+excluded. The tab refreshes when opened and has an explicit refresh button.

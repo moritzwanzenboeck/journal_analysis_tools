@@ -72,7 +72,7 @@ class SamplingTests(unittest.TestCase):
         self.assertEqual(len({row['doi'] for row in first}), 10)
         self.assertEqual(report['eligible_entry_count'], 12)
         self.assertEqual(len(report['excluded_notices']), 3)
-        self.assertEqual(len(tools.sample_rows(rows, 15, include_notices=True)[0]), 15)
+        with self.assertRaises(ValueError):tools.sample_rows(rows, 15, include_notices=True)
         with self.assertRaises(ValueError):
             tools.sample_rows(rows, 13)
         with self.assertRaises(ValueError):

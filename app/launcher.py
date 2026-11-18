@@ -24,7 +24,7 @@ def main():
                 if (root / 'app/python').is_dir() else
                 'For source checkouts, install requirements.txt in this Python environment.')
     try:
-        import notebook, ipykernel, ipywidgets  # noqa: F401
+        import notebook, ipykernel, ipywidgets, anywidget  # noqa: F401
         for spec in SERVICES:
             if not (root / spec.notebook).is_file():
                 raise FileNotFoundError(f'Notebook not found: {root / spec.notebook}')
@@ -41,7 +41,7 @@ def main():
             probe.destroy()
         except (tk.TclError, RuntimeError) as error:
             parser.exit(1, f'Tk could not initialise: {error}\nUse a Python installation with matching Tcl/Tk libraries.\n')
-        print('Python, Tk, Jupyter Notebook, ipykernel and ipywidgets are available.')
+        print('Python, Tk, Jupyter Notebook, ipykernel, ipywidgets and anywidget are available.')
         for spec in SERVICES:
             print(f'{spec.title}: {root / spec.notebook}')
         return

@@ -203,3 +203,13 @@ Logs are stored here:
 
 Logs and notebook links can contain local access tokens. Share only the relevant
 error text when requesting help.
+
+
+## Interactive selection editor in a source checkout
+
+The text notebook's selectable editor requires `anywidget` as well as
+`ipywidgets`. Both are in `requirements.txt` and in compiled platform downloads.
+After updating source code, install the requirements into the same environment
+that starts Jupyter, restart the service and run all cells again. Project copies
+of the text notebook are self-contained; update their notebook template before
+using the new controls. Existing categorization JSON remains loadable.

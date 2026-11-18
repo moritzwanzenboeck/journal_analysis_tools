@@ -48,7 +48,8 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
 - Preserve both random journal sampling and manual DOI selection. Manual lookup
   must preload complete export metadata, deduplicate bare DOI/resolver URL forms,
   and reuse cached successes on retry. Creation from checked records must not
-  fetch again or sample/filter explicit choices. Show the journal/count/year
+  fetch again or sample explicit choices. Exclude non-scientific articles in
+  random sampling and manual DOI validation; retain reasons and full raw exports. Show the journal/count/year
   overview and multi-journal warning before creation. Keep manual project exports
   compatible with the categorization notebook's `sample_export` contract.
 
@@ -63,3 +64,13 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
 - Store editable Mac notebooks outside the bundle and retain existing edits.
   Verify the compiled Finder app itself, plus real embedded Python and kernels;
   the shell shortcut alone is insufficient release-startup coverage.
+
+- Keep browser selections local and Unicode-safe. Selected body spans use virtual
+  boundaries; their labels never add counted words. Heading/boundary removal
+  retains prose and marks merged assignments Unassigned. Keep the inline editor
+  class in parity with `dev/selection_widget.py`.
+- Project categories live in `paper_categorizations/categories.json`. Removing
+  one resets all saved and active assignments to Unassigned with transactional
+  rollback; preserve file mtimes so newest-version resolution remains stable.
+  The project summary counts the latest saved JSON once per sampled DOI and
+  reports missing/invalid papers without silently substituting an older file.

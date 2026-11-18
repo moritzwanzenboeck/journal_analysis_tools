@@ -6,7 +6,7 @@ from unicodedata import normalize
 
 LINE_END_HYPHEN = re.compile(r"(?<=\w)[-\u2010\u00ad][ \t]*\n[ \t]*(?=\w)")
 # Numbered section/subsection headings are excluded from paragraph counts.
-NUMBERED_HEADING = re.compile(r"^[^\S\n]*(?:\d+\.|\d+(?:\.\d+)+\.?)[^\S\n]+[^\W\d_].*$")
+NUMBERED_HEADING = re.compile(r"(?:[ \t]*[1-9]\d?(?:\.[1-9]\d?){1,5}\.?[ \t]*$)|(?:^[^\S\n]*(?:\d+\.|\d+(?:\.\d+)+\.?)[^\S\n]+[^\W\d_].*$)")
 WORD = re.compile(r"[^\W_]+(?:['’\-\u2010\u2011][^\W_]+)*", re.UNICODE)
 
 

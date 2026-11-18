@@ -13,7 +13,7 @@ from app.notebook_services import NotebookService, SERVICES
 
 
 def main():
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright, expect
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--browser-executable', help='Optional installed Chrome/Chromium path')
@@ -65,6 +65,7 @@ def main():
                 lines += ['3. Results','A final result!']
                 page.get_by_role('textbox',name='Original paper:',exact=True).fill('\n'.join(lines))
                 page.get_by_role('button',name='Clean full paper',exact=True).click()
+                page.wait_for_function("document.querySelectorAll('.paper-section-row').length===15")
                 grid=page.locator('.paper-summary-grid')
                 grid.wait_for(state='attached',timeout=30000)
                 grid.scroll_into_view_if_needed()
@@ -112,9 +113,69 @@ def main():
                 grid.screenshot(path=str(stage/'fixed-summary.png'))
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).is_disabled()
                 assert page.get_by_role('textbox',name='Save folder:',exact=True).input_value()==str(project/'paper_categorizations')
-                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder']}))
+                # Real browser selection, including supplementary Unicode before the selection.
+                page.get_by_role('checkbox',name='Allow replacing the current unsaved paper',exact=True).check()
+                page.get_by_role('combobox',name='Sampled paper:',exact=True).select_option(label='2. Browser paper 2')
+                page.get_by_role('button',name='Start / reopen paper',exact=True).click()
+                expect(page.get_by_role('textbox',name='Original paper:',exact=True)).to_have_value('')
+                raw='Opening 𝑝 paragraph.\nA method paragraph.\nA final result!'
+                page.get_by_role('textbox',name='Original paper:',exact=True).fill(raw)
+                page.get_by_role('button',name='Clean full paper',exact=True).click()
+                editor=page.get_by_role('textbox',name='Cleaned paper:',exact=True)
+                def select_text(phrase):
+                    page.wait_for_function("phrase=>document.querySelector('.paper-selection-editor textarea')?.value.includes(phrase)",arg=phrase)
+                    editor.evaluate("(e,phrase)=>{e.focus(); const start=e.value.indexOf(phrase); if(start<0)throw Error('Missing selection'); e.setSelectionRange(start,start+phrase.length);e.dispatchEvent(new Event('select'));}",phrase)
+                select_text('A method paragraph.')
+                page.get_by_role('combobox',name='Category:',exact=True).select_option(label='Methods')
+                page.get_by_role('textbox',name='Text-section title:',exact=True).fill('Approach')
+                page.get_by_role('button',name='Assign selected text',exact=True).click()
+                selected_row=page.locator('.paper-section-row').filter(has_text='Approach').first
+                selected_row.wait_for(state='visible')
+                assert selected_row.locator('select').input_value()=='Methods'
+                assert 'A method paragraph.' in editor.input_value()
+                selected_row.locator('select').select_option(label='Data')
+                selected_row.get_by_role('button',name='Remove boundary',exact=True).click()
+                page.wait_for_function("!Array.from(document.querySelectorAll('.paper-section-row')).some(e=>e.textContent.includes('Approach'))")
+                assert 'A method paragraph.' in editor.input_value()
+                # Mark actual prose as a heading, then remove it without losing its words.
+                select_text('A final result!')
+                page.get_by_role('button',name='Mark / change heading',exact=True).click()
+                marked=page.locator('.paper-section-row').filter(has_text='A final result!').first
+                marked.wait_for(state='visible')
+                marked.get_by_role('button',name='Remove boundary',exact=True).click()
+                page.wait_for_function("!Array.from(document.querySelectorAll('.paper-section-row')).some(e=>e.textContent.includes('A final result!'))")
+                assert 'A final result!' in editor.input_value()
+                # Project controls are outside the tabs and categories apply to every paper.
+                page.get_by_text('Manage project categories',exact=True).last.click()
+                page.get_by_role('textbox',name='Custom categories:',exact=True).fill('Institutions')
+                page.get_by_role('button',name='Save project categories',exact=True).click()
+                page.wait_for_function("Array.from(document.querySelectorAll('select option')).some(e=>e.textContent==='Institutions')")
+                select_text('A method paragraph.')
+                page.get_by_role('combobox',name='Category:',exact=True).select_option(label='Institutions')
+                page.get_by_role('button',name='Assign selected text',exact=True).click()
+                selected_row=page.locator('.paper-section-row').filter(has_text='Approach').first
+                selected_row.wait_for(state='visible')
+                page.get_by_role('button',name='Save cleaned text + JSON',exact=True).click()
+                page.wait_for_function("document.body.textContent.includes('Saved reloadable JSON:')")
+                page.get_by_role('tab',name='Project summary',exact=True).click()
+                page.wait_for_function("document.body.textContent.includes('1/10 papers saved')")
+                assert 'Browser paper 2' in page.locator('table').last.inner_text()
+                page.get_by_role('textbox',name='Custom categories:',exact=True).fill('')
+                page.get_by_role('button',name='Save project categories',exact=True).click()
+                page.wait_for_function("document.body.textContent.includes('1 saved assignment(s) reset to Unassigned')")
+                page.get_by_role('tab',name='Categorize full paper',exact=True).click()
+                expect(selected_row.locator('select')).to_have_value('Unassigned')
+                assert (project/'paper_categorizations/categories.json').exists()
+                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder','Unicode browser selection','heading mark/remove','selected-text reassignment/removal','project categories and saved assignment rewrite','project-wide summary']}))
                 print('Browser layout checks passed.'+(' Artifacts: '+str(stage) if args.artifacts else ''))
                 browser.close()
+        except Exception:
+            try:
+                page.screenshot(path=str(stage/'browser-failure.png'))
+                (stage/'browser-failure.txt').write_text(page.locator('body').inner_text(),encoding='utf-8')
+            except Exception:
+                pass
+            raise
         finally:
             service.force_stop()
 

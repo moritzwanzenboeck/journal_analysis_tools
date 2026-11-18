@@ -61,7 +61,7 @@ fi
 selected_python=''
 for candidate in "${candidates[@]}"; do
   if [[ -n "$candidate" && -x "$candidate" ]] && "$candidate" -c \
-      'import sys; assert sys.version_info >= (3, 10); import tkinter, notebook, ipykernel, ipywidgets, psutil' >/dev/null 2>&1; then
+      'import sys; assert sys.version_info >= (3, 10); import tkinter, notebook, ipykernel, ipywidgets, anywidget, psutil' >/dev/null 2>&1; then
     selected_python="$candidate"
     break
   fi

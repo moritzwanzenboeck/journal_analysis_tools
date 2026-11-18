@@ -31,7 +31,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 # Increment with the required version in the project notebook when its backend API changes.
-PROJECT_NOTEBOOK_API_VERSION = 1
+PROJECT_NOTEBOOK_API_VERSION = 2
 
 FIELDS = (
     "bibtex_key", "doi", "title", "authors", "journal", "year", "volume",
@@ -385,15 +385,41 @@ def validate_window(start, end, basis):
 
 
 NOTICE_TITLE = re.compile(
-    r"^(?:editorial|corrigendum|corrigenda|erratum|errata|retraction|"
-    r"withdrawal|publisher.s note|acknowledg(?:e)?ments?|reviewer acknowledg)\b"
-    r"|\b(?:preface|special issue)\b", re.IGNORECASE,
+    r"^(?:(?:guest |managing |from the )?editorials?|editor(?:'s|s’|’s) (?:note|introduction)|"
+    r"corrigendum|corrigenda|correction(?: to|:|$)|erratum|errata|retraction|withdrawal|"
+    r"publisher.s note|acknowledg(?:e)?ments?|reviewer acknowledg|"
+    r"front[\s-]*matter|back[\s-]*matter|cover(?: page| image)?(?=$|\s*:)|"
+    r"table of contents|contents(?:$|:)|index(?=$|\s*(?::|to volume|to issue))|author index|subject index|"
+    r"masthead|imprint|copyright|permissions|instructions (?:to|for) authors|"
+    r"information for (?:authors|contributors)|call for papers|announcement|"
+    r"obituar(?:y|ies)|in memoriam|book review|books received|preface|foreword|"
+    r"(?:an? |introduction to (?:the )?)?special issue)\b", re.IGNORECASE,
 )
 NOTICE_FILTER_NOTE = (
-    "Title heuristic excluding editorials, corrections, errata, retractions, "
-    "withdrawals, publisher notes, acknowledgements, prefaces and special issues. "
-    "Review the exclusions; this is not a full article-type classification."
+    "Exclude non-scientific items using publisher article-type metadata when available "
+    "and a title heuristic for editorials, front/back matter, notices, corrections, "
+    "contents, covers, book reviews and similar material. Full exports retain excluded "
+    "records; selection reports list the DOI, title and reason. Review publisher metadata."
 )
+
+
+def non_scientific_reason(record):
+    """Use explicit publisher labels and conservative title prefixes, never subjects."""
+    labels = []
+    for key in ("subtype", "article-type", "article_type"):
+        value = record.get(key, "")
+        labels.extend(value if isinstance(value, list) else [value])
+    for item in record.get("assertion", []) or []:
+        if isinstance(item, dict) and re.search(r"article.?type|content.?type", str(item.get("name", "")) + " " + str(item.get("label", "")), re.I):
+            labels.append(item.get("value", ""))
+    for value in labels:
+        label = re.sub(r"[-_]", " ", plain_text(str(value))).strip()
+        if NOTICE_TITLE.search(label):
+            return "Publisher article type: " + label
+    title = plain_text(" ".join(record.get("title", [])))
+    if NOTICE_TITLE.search(title):
+        return "Non-scientific title: " + title
+    return ""
 
 
 def sample_rows(rows, count, seed=None, include_notices=False):
@@ -406,16 +432,16 @@ def sample_rows(rows, count, seed=None, include_notices=False):
         values = [row[field].strip().lower() for row in rows]
         if any(not value for value in values) or len(set(values)) != len(values):
             raise ValueError(f"Source has empty or duplicate {field} values.")
-    excluded = [] if include_notices else [row for row in rows if NOTICE_TITLE.search(row["title"])]
-    eligible = list(rows) if include_notices else [row for row in rows if not NOTICE_TITLE.search(row["title"])]
+    excluded = [row for row in rows if NOTICE_TITLE.search(row["title"])]
+    eligible = [row for row in rows if not NOTICE_TITLE.search(row["title"])]
     if count > len(eligible):
         raise ValueError(f"Requested {count} papers, but only {len(eligible)} are eligible ({len(rows)} total).")
     seed = seed if seed is not None else secrets.randbits(64)
     selected = random.Random(seed).sample(sorted(eligible, key=lambda row: row["doi"]), count)
     report = {
         "source_entry_count": len(rows), "eligible_entry_count": len(eligible),
-        "include_notices": include_notices, "notice_filter": NOTICE_FILTER_NOTE,
-        "excluded_notices": [{"doi": row["doi"], "title": row["title"]} for row in excluded],
+        "include_notices": False, "notice_filter": NOTICE_FILTER_NOTE,
+        "excluded_notices": [{"doi": row["doi"], "title": row["title"], "reason": "Non-scientific title"} for row in excluded],
         "selected_entry_count": count, "seed": seed,
         "sampling": "uniform random sample without replacement; population sorted by DOI",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -498,14 +524,25 @@ def create_project(journal, start, end, count, projects_root, *, date_basis="fir
             raise ValueError("Input JSON must be a list of Crossref work records.")
         queries = []
     rows, outside = normalize(records, journal, start, end, date_basis)
-    selected, selection_report = sample_rows(rows, count, seed, include_notices)
+    reasons = {}
+    for record in records:
+        reason = non_scientific_reason(record)
+        if reason:
+            reasons[str(record.get("DOI", "")).strip().lower()] = reason
+    eligible = [row for row in rows if not reasons.get(row["doi"])]
+    if count > len(eligible):
+        raise ValueError(f"Requested {count} papers, but only {len(eligible)} are eligible ({len(rows)} total).")
+    selected, selection_report = sample_rows(eligible, count, seed)
+    excluded = [{"doi": row["doi"], "title": row["title"], "reason": reasons[row["doi"]]} for row in rows if reasons.get(row["doi"])]
+    selection_report["source_entry_count"] = len(rows)
+    selection_report["excluded_notices"] = excluded + selection_report["excluded_notices"]
     stem = f"{slugify(journal.name)}_{start}_{end}" + (f"_{date_basis}" if date_basis != "first" else "")
     sample_stem = f"{stem}_random{count}"
     created_at = datetime.now(timezone.utc).isoformat()
     config = {
         "schema_version": 1, "journal": journal.name, "issns": list(journal.issns),
         "start_date": str(start), "end_date": str(end), "date_basis": date_basis,
-        "sample_size": count, "seed": selection_report["seed"], "include_notices": include_notices,
+        "sample_size": count, "seed": selection_report["seed"], "include_notices": False,
         "created_at_utc": created_at, "full_export": f"output/{stem}.csv",
         "sample_export": f"output/{sample_stem}.csv",
     }
@@ -540,10 +577,14 @@ def _write_project(destination, template, config, rows, selected, selection_repo
         "- `output/`: matching CSV/BibTeX exports, selected papers, raw metadata and reports.\n"
         "- `clean_and_count_text.ipynb`: self-contained cleaning, counting and full-paper categorization notebook.\n\n"
         "Open the text-cleaning notebook in Jupyter and run all cells. Choose Clean & count (original) "
-        "for the existing workflow, or Categorize full paper to label sections. In Save and reload, "
-        "the paper selector reads this project's selected papers. Use Start / reopen paper, or Associate current text "
+        "for the existing workflow, or Categorize full paper to label sections. Above the tabs, select this project; "
+        "the paper selector at the top of the full-paper tab reads its selected papers. Use Start / reopen paper, or Associate current text "
         "for a paper already pasted. Save cleaned text and reloadable categorization JSON into this project's "
         "paper_categorizations/ folder. Saved JSON lists existing categorizations throughout the project. "
+        "Mark headings or select body text to assign categories directly. Manage project categories above the tabs; "
+        "removing a custom category resets its assignments to Unassigned in all saved papers. "
+        "The Project summary tab totals the latest saved JSON per paper and shows missing or incomplete papers. "
+        "Editorials, front/back matter and similar non-scientific articles are excluded from project selections. "
         "Choose your own folders and files for PDFs and analysis results. PDFs are not downloaded. "
         "Crossref metadata needs human review. The first-publication rule uses the earliest known online, "
         "print, published or issued date. Partial dates use the first day for filtering and retain their precision in exports.\n"
@@ -592,6 +633,9 @@ def normalize_doi(value):
 def manual_record_row(record):
     if not isinstance(record, dict) or record.get("type") != "journal-article":
         raise ValueError("The DOI must identify a journal article in Crossref.")
+    reason = non_scientific_reason(record)
+    if reason:
+        raise ValueError("Excluded non-scientific article: " + reason)
     doi = normalize_doi(record.get("DOI", ""))
     journal_name = plain_text(" ".join(record.get("container-title", [])))
     if not journal_name:
@@ -719,12 +763,12 @@ def create_manual_project(records, projects_root, *, project_name=None, template
               "journals": overview["journals"], "issns": sorted({issn for item in overview["journals"] for issn in item["issns"]}),
               "start_date": str(overview["start_date"]), "end_date": str(overview["end_date"]), "date_basis": "first",
               "year_range": [overview["year_start"], overview["year_end"]], "sample_size": len(rows),
-              "seed": None, "include_notices": True, "created_at_utc": created,
+              "seed": None, "include_notices": False, "created_at_utc": created,
               "full_export": f"output/{stem}.csv", "sample_export": f"output/{selected_stem}.csv",
               "selection_export": f"output/{selected_stem}.csv"}
     selection = {"selection_method": "manual", "sampling": "explicit DOI selection; no random sampling",
                  "source_entry_count": len(rows), "eligible_entry_count": len(rows), "selected_entry_count": len(rows),
-                 "seed": None, "include_notices": True, "excluded_notices": [], "created_at_utc": created,
+                 "seed": None, "include_notices": False, "excluded_notices": [], "created_at_utc": created,
                  "selected_dois": [row["doi"] for row in rows], "selected_bibtex_keys": [row["bibtex_key"] for row in rows]}
     report = {**config, "source": "Crossref metadata preloaded during DOI lookup", "queries": [],
               "raw_record_count": len(records), "entry_count": len(rows), "matching_dois_and_keys_verified": True,

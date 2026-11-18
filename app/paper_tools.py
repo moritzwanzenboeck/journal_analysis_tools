@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
+from copy import deepcopy
 
 PAPER_CATEGORIES = (
     "Introduction", "Literature Review", "Theory", "Data", "Methods",
@@ -20,6 +21,7 @@ PAPER_UNASSIGNED = "Unassigned"
 PAPER_EXCLUDED = "Exclude from summary"
 PAPER_LABELS = (PAPER_UNASSIGNED, *PAPER_CATEGORIES, PAPER_EXCLUDED)
 PAPER_NUMBERED_TITLE = re.compile(r"^(\d+(?:\.\d+)*)(?:\.)?\s+([^\W\d_].*)$", re.UNICODE)
+PAPER_BARE_NUMBER = re.compile(r"^([1-9]\d?(?:\.[1-9]\d?){1,5})\.?$")
 PAPER_KNOWN_TITLES = {
     "abstract", "introduction", "literature review", "related literature", "related work",
     "background", "institutional background", "institutional setting", "theory",
@@ -42,6 +44,10 @@ def paper_detect_headings(text):
         title = raw.strip()
         words = WORD.findall(title)
         if not title or len(title) > 140 or not words or len(words) > 18:
+            continue
+        bare = PAPER_BARE_NUMBER.fullmatch(title)
+        if bare:
+            headings.append({"title": title, "level": len(bare.group(1).split(".")), "line": index + 1})
             continue
         numbered = PAPER_NUMBERED_TITLE.fullmatch(title)
         if numbered:
@@ -111,33 +117,57 @@ def paper_parse_outline(text):
     return headings
 
 
-def paper_partition(cleaned_text, headings):
-    """Split own body text from child subsections; no span is counted twice."""
+def paper_partition(cleaned_text, headings, manual_boundaries=()):
+    """Partition exact text offsets; virtual boundaries never add counted words."""
     text = normalize_newlines(cleaned_text)
     if not text.strip():
         raise ValueError("Paste or load paper text first.")
     lines = text.split("\n")
-    located, cursor = [], 0
+    offsets, offset = [], 0
+    for line in lines:
+        offsets.append(offset)
+        offset += len(line) + 1
+    events, cursor = [], 0
     for heading in headings:
         if type(heading.get("level")) is not int or not 1 <= heading["level"] <= 6 or not isinstance(heading.get("title"), str):
             raise ValueError("Invalid heading level or title.")
         title = heading["title"].strip()
         if not title or "\n" in title or "\r" in title:
             raise ValueError("A heading must be a nonempty single line.")
-        found = next((i for i in range(cursor, len(lines)) if lines[i].strip() == title), None)
+        line = heading.get("line")
+        if line is not None:
+            if type(line) is not int or not cursor < line <= len(lines) or lines[line - 1].strip() != title:
+                raise ValueError("Saved heading line does not match the cleaned text.")
+            found = line - 1
+        else:
+            found = next((i for i in range(cursor, len(lines)) if lines[i].strip() == title), None)
         if found is None:
             raise ValueError(f"Heading not found in order on its own line: {title!r}. Copy its exact title from Cleaned paper.")
-        located.append({"title": title, "level": heading["level"], "line": found + 1})
+        events.append({"title": title, "level": heading["level"], "heading_line": found + 1,
+                       "start": offsets[found], "body_start": offsets[found] + len(lines[found]), "virtual": False})
         cursor = found + 1
+    for boundary in manual_boundaries:
+        if (not isinstance(boundary, dict) or type(boundary.get("offset")) is not int
+                or not 0 <= boundary["offset"] < len(text) or type(boundary.get("level")) is not int
+                or not 1 <= boundary["level"] <= 6 or not isinstance(boundary.get("title"), str)
+                or not boundary["title"].strip() or "\n" in boundary["title"] or "\r" in boundary["title"]):
+            raise ValueError("Invalid selected-text boundary.")
+        pos = boundary["offset"]
+        if any(event["start"] <= pos <= event["body_start"] for event in events if not event["virtual"]):
+            raise ValueError("A text boundary cannot overlap a heading. Select body text instead.")
+        events.append({"title": boundary["title"], "level": boundary["level"], "heading_line": None,
+                       "start": pos, "body_start": pos, "virtual": True})
+    events.sort(key=lambda item: item["start"])
+    if len({item["start"] for item in events}) != len(events):
+        raise ValueError("Two boundaries cannot start at the same position.")
     units = []
-    first_heading = located[0]["line"] - 1 if located else len(lines)
-    preamble = "\n".join(lines[:first_heading]).strip()
-    if preamble:
-        units.append({"title": "", "level": 0, "heading_line": None, "body": preamble})
-    for index, heading in enumerate(located):
-        end = located[index + 1]["line"] - 1 if index + 1 < len(located) else len(lines)
-        units.append({"title": heading["title"], "level": heading["level"], "heading_line": heading["line"],
-                      "body": "\n".join(lines[heading["line"]:end]).strip()})
+    first = events[0]["start"] if events else len(text)
+    if text[:first].strip():
+        units.append({"title": "", "level": 0, "heading_line": None, "body": text[:first].strip(),
+                      "start": 0, "body_start": 0, "end": first, "virtual": False})
+    for index, event in enumerate(events):
+        end = events[index + 1]["start"] if index + 1 < len(events) else len(text)
+        units.append(dict(event, end=end, body=text[event["body_start"]:end].strip()))
     stack = []
     for index, unit in enumerate(units, 1):
         unit["id"] = f"part_{index:04d}"
@@ -151,9 +181,17 @@ def paper_partition(cleaned_text, headings):
 
 
 def paper_make_document(cleaned_text, outline_text, *, previous=None, include_heading_words=True,
-                        paper_name="paper", source_text="", keep_hyphens=(), paper_metadata=None, project_metadata=None):
+                        paper_name="paper", source_text="", keep_hyphens=(), paper_metadata=None, project_metadata=None, custom_categories=None, manual_boundaries=None):
     text = normalize_newlines(cleaned_text)
-    units = paper_partition(text, paper_parse_outline(outline_text))
+    boundaries = deepcopy(manual_boundaries if manual_boundaries is not None else (previous or {}).get("manual_boundaries", []))
+    if boundaries and previous and text != previous["cleaned_text"] and manual_boundaries is None:
+        raise ValueError("Selected-text boundaries exist. Use the selection controls to edit headings, or remove text boundaries before editing the text.")
+    custom = paper_validate_categories(custom_categories if custom_categories is not None else (previous or {}).get("custom_categories", []))
+    headings = paper_parse_outline(outline_text)
+    old_headings = [u for u in (previous or {}).get("units", []) if u["heading_line"] is not None]
+    if previous and text == previous["cleaned_text"] and [h["title"] for h in headings] == [u["title"] for u in old_headings]:
+        headings = [dict(h,line=u["heading_line"]) for h,u in zip(headings,old_headings)]
+    units = paper_partition(text, headings, boundaries)
     # Match repeated headings in document order when rebuilding after an edit.
     labels = defaultdict(deque)
     if previous:
@@ -161,25 +199,27 @@ def paper_make_document(cleaned_text, outline_text, *, previous=None, include_he
             labels[unit["title"]].append(unit["category"])
     for unit in units:
         if labels[unit["title"]]:
-            unit["category"] = labels[unit["title"]].popleft()
+            label = labels[unit["title"]].popleft()
+            unit["category"] = label if label in paper_labels({"custom_categories":custom}) else PAPER_UNASSIGNED
     return {"schema_version": 1, "workflow": "full_paper_categorization", "paper_name": paper_name,
             "cleaned_text": text, "source_text": source_text, "keep_hyphens": sorted(set(keep_hyphens)),
             "include_heading_words": bool(include_heading_words), "units": units,
+            "custom_categories": custom, "manual_boundaries": boundaries,
             "paper_metadata": dict(paper_metadata if paper_metadata is not None else (previous or {}).get("paper_metadata", {})),
             "project_metadata": dict(project_metadata if project_metadata is not None else (previous or {}).get("project_metadata", {}))}
 
 
 def paper_unit_counts(unit, include_heading_words=True):
     body = count_text(unit["body"])
-    return {"words": body["words"] + (len(WORD.findall(unit["title"])) if include_heading_words else 0),
+    return {"words": body["words"] + (len(WORD.findall(unit["title"])) if include_heading_words and not unit.get("virtual") else 0),
             "paragraphs": body["paragraphs"]}
 
 
 def paper_summary(document):
     rows = {category: {"category": category, "section_titles": [], "subsection_titles": [], "words": 0, "paragraphs": 0}
-            for category in PAPER_LABELS}
+            for category in paper_labels(document)}
     by_id = {unit["id"]: unit for unit in document["units"]}
-    seen = {category: set() for category in PAPER_LABELS}
+    seen = {category: set() for category in paper_labels(document)}
     for unit in document["units"]:
         row = rows[unit["category"]]
         counts = paper_unit_counts(unit, document["include_heading_words"])
@@ -208,15 +248,22 @@ def paper_validate_document(value):
     saved = value["units"]
     if not saved or any(not isinstance(unit, dict) for unit in saved):
         raise ValueError("The saved file has no valid sections.")
-    outline = [{"title": unit.get("title"), "level": unit.get("level")} for unit in saved if unit.get("heading_line") is not None]
-    units = paper_partition(value["cleaned_text"], outline)
+    outline = [{"title": unit.get("title"), "level": unit.get("level"), "line": unit.get("heading_line")} for unit in saved if unit.get("heading_line") is not None]
+    custom = paper_validate_categories(value.get("custom_categories", []))
+    boundaries = value.get("manual_boundaries", [])
+    if not isinstance(boundaries, list):
+        raise ValueError("Invalid selected-text boundaries.")
+    units = paper_partition(value["cleaned_text"], outline, boundaries)
     if len(saved) != len(units):
         raise ValueError("Saved section boundaries do not match the cleaned text.")
     for actual, expected in zip(saved, units):
         for field in ("id", "title", "level", "heading_line", "parent_id", "body"):
             if actual.get(field) != expected[field]:
                 raise ValueError(f"Saved section structure does not match the cleaned text ({field}).")
-        if actual.get("category") not in PAPER_LABELS:
+        for field in ("start", "body_start", "end", "virtual"):
+            if field in actual and actual[field] != expected[field]:
+                raise ValueError("Saved text offsets do not match the cleaned text.")
+        if actual.get("category") not in paper_labels({"custom_categories": custom}):
             raise ValueError("The saved file contains an unknown category.")
         expected["category"] = actual["category"]
     keep = value.get("keep_hyphens", [])
@@ -231,7 +278,8 @@ def paper_validate_document(value):
         metadata[field] = dict(item)
     return {"schema_version": 1, "workflow": "full_paper_categorization", "paper_name": value["paper_name"],
             "cleaned_text": normalize_newlines(value["cleaned_text"]), "source_text": value.get("source_text", ""),
-            "keep_hyphens": sorted(set(keep)), "include_heading_words": value["include_heading_words"], "units": units, **metadata}
+            "keep_hyphens": sorted(set(keep)), "include_heading_words": value["include_heading_words"], "units": units,
+            "custom_categories": custom, "manual_boundaries": deepcopy(boundaries), **metadata}
 
 
 def paper_export_document(document):
@@ -364,5 +412,216 @@ def paper_saved_in_project(context):
 def paper_save_in_project(document, context, name=None, overwrite=False):
     # Re-read the manifest and folder constraint at save time, not a disabled UI field.
     current = paper_read_project(context["root"])
+    document = paper_set_categories(document, paper_project_categories(current))
     document = dict(document, project_metadata=paper_project_metadata(current))
     return paper_save_files(document, current["save_directory"], name or document["paper_name"], overwrite)
+
+
+def paper_validate_categories(categories):
+    if not isinstance(categories, (list, tuple)):
+        raise ValueError("Custom categories must be a list of names.")
+    names, seen = [], {name.casefold() for name in PAPER_LABELS}
+    for value in categories:
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > 80 or any(c in value for c in "\r\n\t"):
+            raise ValueError("Use category names of 1–80 characters, one per line.")
+        name = value.strip()
+        if name.casefold() in seen:
+            raise ValueError(f"Duplicate or reserved category name: {name}")
+        names.append(name)
+        seen.add(name.casefold())
+    return names
+
+
+def paper_categories(document=None):
+    return (*PAPER_CATEGORIES[:-1], *(document or {}).get("custom_categories", []), PAPER_CATEGORIES[-1])
+
+
+def paper_labels(document=None):
+    return (PAPER_UNASSIGNED, *paper_categories(document), PAPER_EXCLUDED)
+
+
+def paper_set_categories(document, categories):
+    result = deepcopy(document)
+    result["custom_categories"] = paper_validate_categories(categories)
+    allowed = paper_labels(result)
+    for unit in result["units"]:
+        if unit["category"] not in allowed:
+            unit["category"] = PAPER_UNASSIGNED
+    return result
+
+
+def paper_select_range(document, start, end, category, title="Selected text", level=1):
+    """Create virtual section boundaries around selected body text; preserve all prose."""
+    document = paper_validate_document(document)
+    text = document["cleaned_text"]
+    if type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text) or not text[start:end].strip():
+        raise ValueError("Select body text in Cleaned paper first.")
+    if category not in paper_labels(document):
+        raise ValueError("Choose a valid category.")
+    if any(unit["heading_line"] is not None and start < unit["body_start"] and end > unit["start"] for unit in document["units"]):
+        raise ValueError("Select body text without heading lines, or assign the existing section using its dropdown.")
+    while start < end and text[start].isspace():
+        start += 1
+    while end > start and text[end-1].isspace():
+        end -= 1
+    # Cutting a token would count fragments as separate words.
+    for pos in (start, end):
+        if any(match.start() < pos < match.end() for match in WORD.finditer(text)):
+            raise ValueError("Select complete words so counts remain accurate.")
+    old = document["units"]
+    boundaries = deepcopy(document["manual_boundaries"])
+    for pos, name in ((start, title.strip() or "Selected text"), (end, "Unheaded text")):
+        next_heading = next((u["start"] for u in old if u["heading_line"] is not None and u["start"] >= pos), len(text))
+        if pos < len(text) and text[pos:next_heading].strip() and not any(unit["start"] == pos for unit in old):
+            boundaries.append({"offset": pos, "title": name, "level": level})
+    headings = [{"title": u["title"], "level": u["level"], "line": u["heading_line"]} for u in old if u["heading_line"] is not None]
+    units = paper_partition(text, headings, boundaries)
+    for unit in units:
+        previous = next((u for u in old if u["start"] <= unit["start"] < u["end"]), None)
+        unit["category"] = category if start <= unit["start"] < end else (previous["category"] if previous else PAPER_UNASSIGNED)
+    document.update(units=units, manual_boundaries=boundaries)
+    return document
+
+
+def paper_edit_heading(document, start, end, level=None):
+    """Mark a selection as a real heading, change its level, or remove boundaries.
+
+    Removing a heading retains its exact words as body text and resets the merged
+    section to Unassigned so an old category cannot silently cover different prose.
+    """
+    document = paper_validate_document(document)
+    text = document["cleaned_text"]
+    if type(start) is not int or type(end) is not int or not 0 <= start <= end <= len(text):
+        raise ValueError("Select text or place the cursor in a heading first.")
+    hits = [u for u in document["units"] if (u["start"] <= start < u["end"] if start == end else u["start"] < end and u["end"] > start)]
+    if level is None:
+        removed = {u["id"] for u in hits if u["level"]}
+        if not removed:
+            raise ValueError("The selection has no heading or text boundary to remove.")
+        headings = [{"title": u["title"], "level": u["level"], "line": u["heading_line"]} for u in document["units"] if u["heading_line"] is not None and u["id"] not in removed]
+        boundaries = [b for b in document["manual_boundaries"] if not any(u["id"] in removed and u["start"] == b["offset"] for u in document["units"])]
+        units = paper_partition(text, headings, boundaries)
+        for unit in units:
+            covered = [old for old in document["units"] if old["start"] < unit["end"] and old["end"] > unit["start"]]
+            if len(covered) == 1 and covered[0]["id"] not in removed:
+                unit["category"] = covered[0]["category"]
+        document.update(units=units, manual_boundaries=boundaries)
+        return document
+    if type(level) is not int or not 1 <= level <= 6:
+        raise ValueError("Heading levels must be between 1 and 6.")
+    # An existing virtual/real section can be reassigned without changing text.
+    existing = next((u for u in hits if u["level"] and (start == end or (u["heading_line"] is not None and end <= u["body_start"]))), None)
+    if existing:
+        headings = [{"title": u["title"], "line": u["heading_line"], "level": level if u["id"] == existing["id"] else u["level"]} for u in document["units"] if u["heading_line"] is not None]
+        boundaries = [dict(b, level=level) if b["offset"] == existing["start"] else b for b in document["manual_boundaries"]]
+        units = paper_partition(text, headings, boundaries)
+        for old, new in zip(document["units"], units):
+            new["category"] = old["category"]
+        document.update(units=units, manual_boundaries=boundaries)
+        return document
+    selected = text[start:end].strip()
+    if not selected or "\n" in selected or len(selected) > 200:
+        raise ValueError("Select a single heading title of at most 200 characters.")
+    left = start + len(text[start:end]) - len(text[start:end].lstrip())
+    right = left + len(selected)
+    if any(u["heading_line"] is not None and left < u["body_start"] and right > u["start"] for u in document["units"]):
+        raise ValueError("Select the complete heading to change its level.")
+    if any(match.start() < pos < match.end() for pos in (left,right) for match in WORD.finditer(text)):
+        raise ValueError("Select complete words for a heading.")
+    before, after = text[:left], text[right:]
+    prefix = "" if not before or before.endswith("\n") else "\n\n"
+    suffix = "" if not after or after.startswith("\n") else "\n\n"
+    new_text = before + prefix + selected + suffix + after
+    shift = len(prefix) + len(suffix)
+    # Relocate existing boundaries/headings by exact offset, including duplicate titles.
+    boundaries = [dict(b, offset=b["offset"] + (shift if b["offset"] >= right else len(prefix) if b["offset"] >= left else 0))
+                  for b in document["manual_boundaries"] if not left <= b["offset"] < right]
+    events = [(u["start"] + (shift if u["start"] >= right else 0), {"title":u["title"],"level":u["level"]})
+              for u in document["units"] if u["heading_line"] is not None]
+    events.append((left + len(prefix), {"title":selected,"level":level}))
+    units = paper_partition(new_text, [dict(h,line=new_text.count("\n",0,pos)+1) for pos,h in sorted(events,key=lambda pair:pair[0])], boundaries)
+    for unit in units:
+        old_pos = unit["start"] - (shift if unit["start"] >= right + shift else len(prefix) if unit["start"] >= left else 0)
+        old = next((u for u in document["units"] if u["start"] <= old_pos < u["end"]), None)
+        if old:
+            unit["category"] = old["category"]
+    document.update(cleaned_text=new_text, units=units, manual_boundaries=boundaries)
+    return document
+
+
+def paper_project_categories(context):
+    path = context["save_directory"] / "categories.json"
+    if not path.exists():
+        return []
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("Category settings must be a regular project file.")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("schema_version") != 1:
+        raise ValueError("Invalid project category settings.")
+    return paper_validate_categories(value.get("custom_categories"))
+
+
+def paper_update_project_categories(context, categories):
+    """Atomically publish settings and recategorized saved papers, with rollback."""
+    context = paper_read_project(context["root"])
+    paper_project_categories(context)  # Validate the existing settings before replacing any files.
+    categories = paper_validate_categories(categories)
+    files, times, changed = {}, {}, 0
+    for item in paper_saved_in_project(context):
+        original = paper_validate_document(json.loads(item["path"].read_text(encoding="utf-8-sig")))
+        updated = paper_set_categories(original, categories)
+        changed += sum(a["category"] != b["category"] for a, b in zip(original["units"], updated["units"]))
+        stat = item["path"].stat()
+        times[item["path"]] = (stat.st_atime_ns,stat.st_mtime_ns)
+        files[item["path"]] = json.dumps(paper_export_document(updated), ensure_ascii=False, indent=2) + "\n"
+    context["save_directory"].mkdir(parents=True, exist_ok=True)
+    files[context["save_directory"] / "categories.json"] = json.dumps({"schema_version": 1, "custom_categories": categories}, ensure_ascii=False, indent=2) + "\n"
+    with tempfile.TemporaryDirectory(prefix=".categories-", dir=context["root"]) as temporary:
+        stage = Path(temporary)
+        backups, published = {}, []
+        try:
+            for i, (path, content) in enumerate(files.items()):
+                (stage / str(i)).write_text(content, encoding="utf-8")
+                if path in times:
+                    os.utime(stage / str(i),ns=times[path])
+            for i, path in enumerate(files):
+                if path.exists():
+                    backups[path] = stage / ("previous-" + str(i))
+                    path.replace(backups[path])
+                (stage / str(i)).replace(path)
+                published.append(path)
+        except BaseException:
+            for path in published:
+                path.unlink()
+            for path, backup in backups.items():
+                backup.replace(path)
+            raise
+    return changed
+
+
+def paper_project_summary(context):
+    """Latest saved categorization per sampled DOI; never count multiple versions."""
+    categories = paper_project_categories(context)
+    empty = paper_summary({"units": [], "custom_categories": categories})
+    saved = paper_saved_in_project(context)
+    papers, errors = [], []
+    for paper in context["papers"]:
+        item = next((s for s in saved if s["doi"] == paper["doi"]), None)
+        entry = {"paper": paper, "status": "Not saved", "rows": None, "path": None}
+        if item:
+            try:
+                doc = paper_validate_document(json.loads(item["path"].read_text(encoding="utf-8-sig")))
+                doc = paper_set_categories(doc, categories)
+                rows = paper_summary(doc)
+                remaining = sum(u["category"] == PAPER_UNASSIGNED for u in doc["units"])
+                entry.update(rows=rows, path=item["path"], status=f"{remaining} unassigned" if remaining else "Complete")
+                for category, row in rows.items():
+                    for key in ("section_titles", "subsection_titles"):
+                        empty[category][key].extend(f"{paper['sample_number']}. {title}" for title in row[key])
+                    for key in ("words", "paragraphs"):
+                        empty[category][key] += row[key]
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                entry["status"] = "Invalid saved JSON"
+                errors.append(f"{item['relative_path']}: {error}")
+        papers.append(entry)
+    return {"rows": empty, "papers": papers, "errors": errors, "custom_categories": categories}

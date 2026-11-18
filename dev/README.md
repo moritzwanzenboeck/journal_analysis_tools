@@ -165,7 +165,9 @@ python dev/check_paper_layout.py
 This starts an isolated local Jupyter service and headless browser, uses a
 synthetic 10-paper project, and checks long-title wrapping, stable copy-button
 positions after relabeling, preview hiding, narrow windows and
-the locked project save folder. It does not use the system clipboard. Pass
+the locked project save folder. It also tests actual Unicode text selection,
+heading mark/remove, selected-text reassignment, custom-category deletion and
+the all-paper summary. It does not use the system clipboard. Pass
 `--browser-executable` to use an installed Chrome/Chromium instead of downloading
 a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
 optional browser check; the compatibility workflow runs the unit/service suite.
@@ -177,7 +179,8 @@ ordered bulk validation, journal/year overview and `create_manual_project`.
 Both creation modes share row serialization and transactional folder publication;
 manual creation has no network or random-sampling step. Keep the schema-1
 `sample_export` contract so generated projects work with the self-contained
-categorization notebook. Manual records retain selection order and notices.
+categorization notebook. Manual records retain selection order; non-scientific
+items are rejected by publisher-type and title rules in both creation modes.
 
 `dev/tests/test_manual_projects.py` tests DOI URL formats, metadata validation,
 cache reuse and partial failures, explicit-selection exports, multiple journals,
@@ -222,3 +225,22 @@ Release verification invokes the compiled Mac app itself with
 The native unit fixture tests an app with no adjacent files and validates its
 signature afterward; full package verification uses the actual embedded runtime,
 GUI and kernels. CI does not automate macOS Gatekeeper approval dialogs.
+
+
+## Interactive categorization model
+
+`dev/selection_widget.py` is the editable source of the inline `PaperSelectionEditor`
+class embedded in the text notebook. Keep them identical. The runtime dependency
+`anywidget` is installed at build/setup time and bundled in platform downloads;
+no frontend CDN or runtime installation is used. Preserve the self-contained
+notebook and AST parity with `app/paper_tools.py` and `app/text_tools.py`.
+
+`dev/tests/test_interactive_categories.py` exercises exact/virtual heading
+boundaries, Unicode offsets, legacy JSON, category removal rollback, newest-file
+ordering, missing/invalid project papers and notebook callbacks.
+`dev/tests/test_article_exclusions.py` verifies non-scientific metadata/title
+filtering in random replay and explicit DOI lookup/creation. Exclusions retain
+reasons in the selection report; full metadata exports are kept for auditing.
+Project settings belong in `paper_categorizations/categories.json`, and deleting
+a custom name must rewrite every saved assignment to Unassigned transactionally.
+Do not make ordinary category changes recreate fixed summary controls.

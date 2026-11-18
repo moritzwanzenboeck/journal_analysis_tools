@@ -72,10 +72,12 @@ DOI. Creation uses those preloaded records without fetching them again. Keep the
 notebook kernel running until creation; restarting it clears the selection and
 lookup cache. DOIs must resolve to journal articles in Crossref.
 
-Manual projects retain exactly the chosen papers, including explicitly selected
-notices; they are not random samples. Their selected-paper exports use
+Manual projects retain the checked scientific articles in selection order; they
+are not random samples. Editorials, front/back matter, corrections and similar
+non-scientific items are rejected during DOI checks. Random selection excludes
+the same material and records the exclusions in its selection report. Their selected-paper exports use
 `_selected<N>` names in `output/`. Open the project's categorization notebook to
-select these papers in **Save and reload** just as with randomly sampled papers.
+select these papers at the top of **Categorize full paper**, just as with randomly sampled papers.
 
 ## Clean and count text
 
@@ -96,7 +98,7 @@ automatic cleanup can misinterpret headings, line breaks and hyphens.
 The same notebook has a separate **Categorize full paper** tab. The original
 clean-and-count workflow remains in **Clean & count (original)**.
 
-1. In **Save and reload**, check **Project folder** and click **Scan project
+1. Above the workflow tabs, check **Project folder** and click **Scan project
    folder**. A notebook opened inside a generated journal project detects that
    project automatically. When using the central launcher, select your project
    folder here.
@@ -105,9 +107,16 @@ clean-and-count workflow remains in **Clean & count (original)**.
    text you have already pasted, use **Associate current text** instead.
 3. Paste the whole paper into **Original paper**, excluding table text, figure
    notes and formulas. Review line-end hyphens, then click **Clean full paper**.
-4. Review the cleaned text and detected headings. Under **Review / correct heading
-   boundaries**, edit the outline as `level | exact heading title`, then click
-   **Apply reviewed outline**. Reapply the outline after editing the cleaned text.
+4. Review the cleaned text and detected headings, including bare subsection numbers
+   such as `2.2`. Select a short title in **Cleaned paper**, choose a heading level
+   and click **Mark / change heading**. To change an existing heading's level,
+   select it again. **Remove boundary** keeps the words and merges the part back
+   into the text, resetting the merged part to Unassigned. The editable outline
+   remains available under **Review / correct heading boundaries**.
+   For a paper without headings, select body text, choose a category and click
+   **Assign selected text**. An optional text-section title labels the range
+   without adding words. Change labels with the section dropdowns; **Clear
+   selected assignments** resets the intersecting parts to Unassigned.
 5. Assign each section or subsection to Introduction, Literature Review, Theory,
    Data, Methods, Results, Discussion, Conclusion or Not categorizable. **Apply to subsections**
    assigns a parent and its descendants; individual labels can then be changed.
@@ -123,6 +132,23 @@ clean-and-count workflow remains in **Clean & count (original)**.
    into its `paper_categorizations` folder. **Saved JSON** lists categorizations
    found throughout the project; select one and click **Load selected JSON** to
    revise it. Other project JSON files are excluded from this list.
+
+Under **Manage project categories** above the tabs, add your own category names,
+one per line, and click **Save project categories**. Removing a name resets all
+its assignments to **Unassigned** in the current paper and every saved
+categorization in that project. The editor warns about this before you apply
+changes. Custom categories appear before the final **Not categorizable** row.
+
+The **Project summary** tab shows category totals across all project papers and
+a table for each paper. It uses the latest saved JSON per DOI, lists missing or
+incomplete papers and provides copy buttons and an Excel export. Save the current
+paper first; unsaved edits are excluded. Click **Refresh project summary** after
+changes made in another notebook.
+
+Selected-text boundaries are saved in JSON alongside the categories. Remove
+them before editing the prose, or use **Reset text boundaries** afterward to
+discard those boundaries and apply the reviewed outline. Normal headings and
+the original pasted text remain available.
 
 **Show text** opens a floating section preview; click it again or **Hide text**
 to close the preview completely. The summary stays in place. Review automatic

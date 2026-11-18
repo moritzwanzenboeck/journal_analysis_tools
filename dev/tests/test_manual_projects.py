@@ -97,7 +97,7 @@ class ManualProjectTests(unittest.TestCase):
         self.assertFalse(tools.manual_overview([print_only,online_only,combined])['multiple_journals'])
 
     def test_complete_manual_project_uses_preloaded_records_and_integrates_with_paper_selector(self):
-        first=dict(article(),title=['Editorial explicitly selected'],abstract='<p>An abstract.</p>')
+        first=dict(article(),title=['A scientific article explicitly selected'],abstract='<p>An abstract.</p>')
         raw=[first,other_article(),first]
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary)
