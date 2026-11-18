@@ -16,7 +16,9 @@ MANIFEST = Path(__file__).with_name('python_runtime.json')
 
 
 def runtime_python(package, target, *, windowed=False):
-    runtime = Path(package)/'app/python'
+    package = Path(package)
+    embedded = package/'Journal Notebook Launcher.app/Contents/Resources/JournalTools/app/python'
+    runtime = embedded if target.startswith('macos-') and embedded.is_dir() else package/'app/python'
     return runtime/('pythonw.exe' if windowed else 'python.exe') if target.startswith('windows-') else runtime/'bin/python3'
 
 

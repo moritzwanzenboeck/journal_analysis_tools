@@ -100,7 +100,8 @@ widget state are stripped from the copy. No venv, settings, project output or
 logs are included. `dev/bundle_python.py` downloads a relocatable Python from
 [python-build-standalone](https://github.com/astral-sh/python-build-standalone),
 using the release, version and SHA-256 values pinned in `dev/python_runtime.json`.
-It installs runtime wheels at build time into `app/python/`, retains Python and
+It installs runtime wheels at build time into `app/python/` (embedded inside the
+Mac app before signing), retains Python and
 third-party licenses, records installed package versions in
 `app/runtime-packages.json` and removes debug symbols and unused script entry
 points. The app downloads and installs nothing on startup.
@@ -198,3 +199,26 @@ and the backend marker aligned whenever project-backend behavior changes. This m
 a user reruns cells in a kernel started before an update. Lookup setup and form
 refresh both need exception handling: every failure must release the busy flag
 and buttons, display an error, and permit another search without kernel restart.
+
+## Self-contained Mac app validation
+
+Portable Mac builds embed the pre-whitelisted tool payload and runtime under
+`Journal Notebook Launcher.app/Contents/Resources/JournalTools/`. Every Mach-O
+interpreter, helper, library and extension is ad-hoc signed before sealing the
+outer app. The flat duplicate runtime is omitted from the Mac ZIP. Windows keeps
+its existing adjacent-runtime layout. This still needs normal user approval for
+an ad-hoc signed download; Apple Developer ID notarization is not provided.
+
+`app/macos_bootstrap.py` creates editable notebook copies outside the bundle and
+never overwrites an existing edited copy. Template changes create a new workspace.
+Bundled code stays in the app; managed kernels receive the explicit backend path.
+The launcher uses the workspace as its notebook root and Documents as the default
+project destination. `-I -B` prevents user Python configuration and bytecode writes
+from altering the signed bundle. No runtime or packages are installed on startup.
+
+Release verification invokes the compiled Mac app itself with
+`JOURNAL_TOOLS_APP_CHECK=1`, rather than substituting the `.command` shortcut.
+`JOURNAL_TOOLS_WORKSPACE` confines native test notebooks to temporary storage.
+The native unit fixture tests an app with no adjacent files and validates its
+signature afterward; full package verification uses the actual embedded runtime,
+GUI and kernels. CI does not automate macOS Gatekeeper approval dialogs.

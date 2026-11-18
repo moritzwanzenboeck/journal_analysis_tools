@@ -11,7 +11,9 @@ from urllib.parse import urlencode
 
 def check(package):
     package = Path(package).resolve()
-    runtime = package/'app/python'
+    embedded = package/'Journal Notebook Launcher.app/Contents/Resources/JournalTools'
+    tools = embedded if embedded.is_dir() else package
+    runtime = tools/'app/python'
     if not Path(sys.executable).resolve().is_relative_to(runtime):
         raise RuntimeError('Verification is not using bundled Python.')
     if not Path(sys.prefix).resolve().is_relative_to(runtime):
@@ -20,7 +22,14 @@ def check(package):
     window = tkinter.Tk()
     window.withdraw()
     window.destroy()
-    sys.path.insert(0, str(package))
+    sys.path.insert(0, str(tools))
+    if embedded.is_dir():
+        from app.macos_bootstrap import prepare_workspace
+        import os
+        package = prepare_workspace(tools, Path(os.environ['JOURNAL_TOOLS_WORKSPACE']))
+        os.environ['JOURNAL_TOOLS_NOTEBOOK_ROOT'] = str(package)
+        os.environ['JOURNAL_TOOLS_PROJECTS_ROOT'] = str(package.parent)
+        os.environ['PYTHONPATH'] = str(tools)
     from app.notebook_services import NotebookService, SERVICES
     import websocket
     import psutil

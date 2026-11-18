@@ -28,7 +28,7 @@ SOURCE_FILES = (
     'README.md', 'requirements.txt', 'notebook_launcher.py', 'start_notebook.command',
     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb',
     'app/__init__.py', 'app/launcher.py', 'app/notebook_services.py',
-    'app/journal_tools.py', 'app/text_tools.py', 'app/paper_tools.py', 'app/launch_notebook.sh', 'app/assets/app.icns',
+    'app/journal_tools.py', 'app/text_tools.py', 'app/paper_tools.py', 'app/macos_bootstrap.py', 'app/launch_notebook.sh', 'app/assets/app.icns',
     'dev/SETUP.md', 'dev/analysis_reference.md', 'dev/README.md',
     'dev/build_notebook_launchers.py', 'dev/windows_launcher.cs',
 )
@@ -111,6 +111,8 @@ def build_release(root, version, output, *, runtime_cache=None):
         if target.startswith('macos-'):
             install(package, package, portable=True)
             app_name = APP_NAME
+            shutil.rmtree(package/'app/python')
+            (package/'app/runtime-packages.json').unlink()
         else:
             install_windows(package, package, portable=True)
             app_name = WINDOWS_APP_NAME
@@ -122,8 +124,10 @@ def build_release(root, version, output, *, runtime_cache=None):
             'Python, Jupyter and the compiled launcher are included. No setup commands are needed.\n'
             '1. Extract the complete folder onto a LOCAL disk. Keep all its files together.\n'
             '2. Double-click '+app_name+'.\n'
-            '3. Start a service, then choose Run All Cells in the notebook.\n\n'
-            'Keep app/python with the tools. Nothing is installed or downloaded on startup.\n'
+            '3. Start a service, then choose Run All Cells in the notebook.\n\n' +
+            ('On Mac the app contains its Python and tools; editable notebooks are kept in your user account.\n'
+             if target.startswith('macos-') else 'Keep app/python with the tools.\n') +
+            'No packages or runtime are downloaded or installed on startup.\n'
             'Project output may be saved on a shared drive, while this tools folder remains local.\n', encoding='utf-8')
         try:
             write_archive(package, archive)
@@ -155,7 +159,8 @@ def verify_archive(archive):
         metadata = json.loads((package/'RELEASE.json').read_text(encoding='utf-8'))
         if metadata['target'] != native_target() or metadata.get('python_bundled') is not True:
             raise ValueError('Cannot verify a release for another platform on this machine.')
-        environment = dict(isolated_environment(), JOURNAL_TOOLS_NO_DIALOG='1')
+        environment = dict(isolated_environment(), JOURNAL_TOOLS_NO_DIALOG='1',
+                           JOURNAL_TOOLS_WORKSPACE=str(destination/'Notebook workspace'))
         # No Python or package manager from PATH, user site or the build venv.
         environment['PATH'] = str(Path(os.environ.get('WINDIR', 'C:/Windows'))/'System32') if os.name == 'nt' else '/usr/bin:/bin'
         # A user's unrelated Python settings must not break native app startup.
@@ -166,13 +171,17 @@ def verify_archive(archive):
             script = subprocess.check_output(['/usr/bin/osadecompile', str(package/APP_NAME/'Contents/Resources/Scripts/main.scpt')], text=True)
             if 'set toolsFolder to ""' not in script or sys.executable in script:
                 raise ValueError('Portable app contains a machine-specific path.')
-            command = ['/bin/bash', str(package/'start_notebook.command'), '--check']
+            # Exercise the compiled Finder entry point, not just its shell shortcut.
+            native_environment['JOURNAL_TOOLS_APP_CHECK'] = '1'
+            command = [str(package/APP_NAME/'Contents/MacOS/applet')]
         else:
             command = [str(package/WINDOWS_APP_NAME), '--check']
         subprocess.run(command, cwd=destination, env=native_environment, check=True, timeout=60)
-        subprocess.run([str(runtime_python(package, native_target())), '-I',
+        subprocess.run([str(runtime_python(package, native_target())), '-I', '-B',
                         str(Path(__file__).with_name('check_bundled_runtime.py')), str(package)],
                        cwd=destination, env=environment, check=True, timeout=240)
+        if sys.platform == 'darwin':
+            validate_macos_app(package/APP_NAME)
     print('Verified extracted, relocated native release:', archive.name)
 
 

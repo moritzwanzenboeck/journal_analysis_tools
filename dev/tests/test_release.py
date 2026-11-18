@@ -28,15 +28,17 @@ def make_assets(directory):
                             python_version=runtime['python_version'], runtime_sha256=runtime['targets'][target]['sha256'])
             zipped.writestr(archive.stem+'/RELEASE.json', json.dumps(metadata))
             files = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
-                     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt',
-                     'app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst']
+                     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
             files += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
             if target.startswith('windows-'):
-                files += ['app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
+                files += ['app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst', 'app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
                           'app/python/Lib/site-packages/notebook/__init__.py']
             else:
-                files += ['app/python/bin/python3', f'app/python/lib/python{series}/LICENSE.txt',
-                          f'app/python/lib/python{series}/site-packages/notebook/__init__.py']
+                payload='Journal Notebook Launcher.app/Contents/Resources/JournalTools/'
+                files += [payload+name for name in ('app/macos_bootstrap.py','app/runtime-packages.json',
+                          'app/python/THIRD_PARTY_LICENSES.rst','app/python/bin/python3',
+                          f'app/python/lib/python{series}/LICENSE.txt',
+                          f'app/python/lib/python{series}/site-packages/notebook/__init__.py')]
             for name in files:
                 zipped.writestr(archive.stem+'/'+name, b'test fixture')
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()

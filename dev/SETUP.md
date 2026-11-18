@@ -7,18 +7,40 @@ packages. Windows, Intel Mac and Apple Silicon Mac users need no terminal setup.
 
 Download the ZIP for your computer from the latest GitHub release: Windows
 `windows-x86_64`, Intel Mac `macos-x86_64`, or Apple Silicon Mac `macos-arm64`.
-Extract the **whole folder** onto a local disk and keep the app beside
-`notebook_launcher.py` and `app/`. Open **Journal Notebook Launcher.exe** on
-Windows or **Journal Notebook Launcher.app** on either Mac. Start a service,
-then choose **Run All Cells** in the notebook.
+Extract the **whole folder** onto a local disk. On Windows keep the app beside
+`notebook_launcher.py` and `app/`, including `app/python`. The Mac app includes
+its tools and runtime inside the signed bundle and may be moved as a whole into
+Applications. Open **Journal Notebook Launcher.exe** on Windows or
+**Journal Notebook Launcher.app** on Mac. Start a service and choose
+**Run All Cells** in the notebook.
 
-Keep the complete folder, including `app/python`, together. You can move that
-whole folder without recreating an environment. Startup downloads or installs
-nothing. Do not run the app builder or create a `.venv` for a release download.
+Moving the Windows folder or Mac app does not require recreating an environment.
+No packages or runtime are downloaded or installed on startup. Mac notebooks
+are copied into a writable user workspace and retained between launches.
+Do not run the app builder or create a `.venv` for a release download.
 GitHub's automatic **Source code** ZIPs lack the compiled app and bundled Python.
 
 For releases before v1.3.0, use their included setup instructions or download
 a current self-contained release instead.
+
+## Mac downloads and editable notebooks
+
+The Mac release keeps its interpreter, extension modules and tools inside the
+signed `.app`, so they remain available when Gatekeeper runs a downloaded app
+from an isolated location. No security attributes are removed on startup.
+Approve the app through macOS's normal Privacy & Security controls when needed.
+
+Editable notebook copies are stored under
+`~/Library/Application Support/Journal Analysis Tools/Notebooks/<template-id>/`.
+Existing notebook edits are retained. An updated set of templates gets a separate
+workspace; previous workspaces remain available. Save full-paper work as JSON
+before switching versions. New projects default to Documents; their saved files
+remain wherever you chose to put them.
+
+Older v1.3.0 Mac downloads can report **Tools folder not found**, even with all
+files together, or have their unsigned Python process blocked. Use a rebuilt Mac
+app containing the runtime. The source checkout supports `--replace`; compiled
+release users should use a corrected platform download when published.
 
 ## Source checkouts only: install Python and packages
 

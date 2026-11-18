@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import queue
 import threading
@@ -18,7 +19,7 @@ def main():
     parser.add_argument('--service', choices=[spec.key for spec in SERVICES])
     parser.add_argument('--check', action='store_true', help='Check dependencies and notebook paths without opening a window')
     args = parser.parse_args()
-    root = Path(__file__).resolve().parent.parent
+    root = Path(os.environ.get("JOURNAL_TOOLS_NOTEBOOK_ROOT", Path(__file__).resolve().parent.parent)).expanduser().resolve()
     recovery = ('Extract the complete platform ZIP again if bundled files are missing.'
                 if (root / 'app/python').is_dir() else
                 'For source checkouts, install requirements.txt in this Python environment.')

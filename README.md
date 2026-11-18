@@ -19,9 +19,11 @@ Double-click **Journal Notebook Launcher** in the extracted tools folder:
 | Intel Mac (`macos-x86_64` ZIP) | **Journal Notebook Launcher.app** |
 | Apple Silicon Mac (`macos-arm64` ZIP) | **Journal Notebook Launcher.app** |
 
-Keep the complete extracted tools folder together on a local disk, including
-its `app` folder. Your analysis projects and output can be saved on a shared
-drive. The app uses its included Python and installs nothing when you open it.
+Keep the extracted tools on a local disk. On Windows keep the app beside the
+`app` folder. The Mac app contains its Python and tools, so you can also move the
+whole `.app` into Applications. Your projects and output can stay on a shared
+drive. Opening the app downloads or installs no packages. On Mac, editable
+notebooks are copied to your user account and retained between launches.
 On macOS, approve the downloaded app in **System Settings → Privacy & Security**
 if prompted and you trust its source.
 

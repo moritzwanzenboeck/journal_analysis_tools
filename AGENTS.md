@@ -56,3 +56,10 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   the backend and its required value in the project notebook. Older running
   kernels must reload the backend before showing controls. Keep lookup setup
   inside exception handling so failed previews cannot leave buttons disabled.
+
+- Mac platform downloads must embed runtime and tool code inside the signed app;
+  adjacent files are unavailable during App Translocation. Sign nested Mach-O
+  files before the outer app. Never remove quarantine attributes on startup.
+- Store editable Mac notebooks outside the bundle and retain existing edits.
+  Verify the compiled Finder app itself, plus real embedded Python and kernels;
+  the shell shortcut alone is insufficient release-startup coverage.

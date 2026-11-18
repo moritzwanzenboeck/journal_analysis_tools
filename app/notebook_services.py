@@ -99,7 +99,8 @@ class NotebookService:
         self.token = secrets.token_urlsafe(32)
         environment = dict(os.environ, JUPYTER_RUNTIME_DIR=str(runtime),
                            JUPYTER_CONFIG_DIR=str(runtime / 'config'), JUPYTER_TOKEN=self.token,
-                           JUPYTER_DATA_DIR=str(runtime / 'data'), JUPYTER_PATH=str(runtime / 'data'))
+                           JUPYTER_DATA_DIR=str(runtime / 'data'), JUPYTER_PATH=str(runtime / 'data'),
+                           PYTHONPATH=str(Path(__file__).resolve().parent.parent))
         environment.pop('JUPYTER_TOKEN_FILE', None)
         # Installed kernelspecs may contain the build machine's absolute Python
         # path. Always launch this service's interpreter, including after a move.

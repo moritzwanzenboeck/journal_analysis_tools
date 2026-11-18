@@ -29,6 +29,11 @@ APPLESCRIPT
 }
 
 [[ -f "$tools_dir/notebook_launcher.py" ]] || fail "Launcher not found: $tools_dir/notebook_launcher.py"
+# Packaged Macs keep executable code inside the signed app bundle.
+embedded_tools="$tools_dir/Journal Notebook Launcher.app/Contents/Resources/JournalTools"
+if [[ -z "${JOURNAL_TOOLS_PYTHON:-}" && -f "$embedded_tools/app/macos_bootstrap.py" && -x "$embedded_tools/app/python/bin/python3" ]]; then
+  exec "$embedded_tools/app/python/bin/python3" -I -B "$embedded_tools/app/macos_bootstrap.py" "$embedded_tools" "$@"
+fi
 candidates=(
   "${JOURNAL_TOOLS_BUILD_PYTHON:-}"
   "$(command -v python3 || true)"

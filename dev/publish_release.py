@@ -52,16 +52,17 @@ def validate_assets(version, directory, revision):
                     or metadata.get('runtime_sha256') != runtime['targets'][target]['sha256']):
                 raise ValueError(f'Invalid release metadata for {archive.name}')
             required = ['notebook_launcher.py', 'requirements.txt', 'app/launcher.py', 'app/paper_tools.py',
-                        'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt',
-                        'app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst']
+                        'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb', 'INSTALL.txt']
             required += ['Journal Notebook Launcher.exe'] if target.startswith('windows-') else ['Journal Notebook Launcher.app/Contents/MacOS/applet']
             if target.startswith('windows-'):
-                required += ['app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
+                required += ['app/runtime-packages.json', 'app/python/THIRD_PARTY_LICENSES.rst', 'app/python/python.exe', 'app/python/pythonw.exe', 'app/python/LICENSE.txt',
                              'app/python/Lib/site-packages/notebook/__init__.py']
             else:
-                required += ['app/python/bin/python3',
+                payload = 'Journal Notebook Launcher.app/Contents/Resources/JournalTools/'
+                required += [payload+name for name in ('app/macos_bootstrap.py', 'app/runtime-packages.json',
+                             'app/python/THIRD_PARTY_LICENSES.rst', 'app/python/bin/python3',
                              f'app/python/lib/python{python_series}/LICENSE.txt',
-                             f'app/python/lib/python{python_series}/site-packages/notebook/__init__.py']
+                             f'app/python/lib/python{python_series}/site-packages/notebook/__init__.py')]
             for name in required:
                 if archive.stem+'/'+name not in zipped.namelist():
                     raise ValueError(f'Release is missing {name}')

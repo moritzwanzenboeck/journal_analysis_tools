@@ -97,21 +97,78 @@ def applescript_string(value):
 
 
 def launcher_source(root, *, portable=False):
-    return f'''on run
-  set toolsFolder to {applescript_string('' if portable else root)}
-  set appFolder to do shell script "/usr/bin/dirname " & quoted form of (POSIX path of (path to me))
+    return f'''use framework "Foundation"
+use scripting additions
+
+on environmentValue(variableName)
+  set processEnvironment to current application's NSProcessInfo's processInfo()'s environment()
+  set variableValue to processEnvironment's objectForKey:variableName
+  if variableValue is missing value then return ""
+  return variableValue as text
+end environmentValue
+
+on toolsFolderIsValid(folderPath)
+  if folderPath is "" then return false
   try
-    do shell script "/usr/bin/test -f " & quoted form of (appFolder & "/notebook_launcher.py")
-    set toolsFolder to appFolder
+    do shell script "/bin/test -f " & quoted form of (folderPath & "/notebook_launcher.py") & " && /bin/test -f " & quoted form of (folderPath & "/app/launch_notebook.sh") & " && /bin/test -f " & quoted form of (folderPath & "/app/launcher.py") & " && /bin/test -f " & quoted form of (folderPath & "/create_journal_analysis.ipynb") & " && /bin/test -f " & quoted form of (folderPath & "/clean_and_count_text.ipynb")
+    return true
+  on error
+    return false
   end try
-  if toolsFolder is "" then
-    display alert "Tools folder not found" message "Extract the complete release and keep this app beside notebook_launcher.py and the app folder."
+end toolsFolderIsValid
+
+on findToolsFolder(appPath, configuredFolder)
+  set appFolder to do shell script "/usr/bin/dirname " & quoted form of appPath
+  if my toolsFolderIsValid(appFolder) then return appFolder
+  if my toolsFolderIsValid(configuredFolder) then return configuredFolder
+  return ""
+end findToolsFolder
+
+on run
+  set toolsFolder to ""
+  set embeddedFolder to (POSIX path of (path to me)) & "/Contents/Resources/JournalTools"
+  if my toolsFolderIsValid(embeddedFolder) then
+    set toolsFolder to embeddedFolder
+  else
+    set toolsFolder to my findToolsFolder(POSIX path of (path to me), {applescript_string('' if portable else root)})
+  end if
+  set checkOnly to false
+  try
+    set checkOnly to ((my environmentValue("JOURNAL_TOOLS_APP_CHECK")) is "1")
+  end try
+  if toolsFolder is "" and checkOnly then error "Tools folder not found beside this app. Open it normally to choose the extracted release folder."
+  repeat while toolsFolder is ""
+    try
+      set selectedFolder to POSIX path of (choose folder with prompt "Choose the extracted Journal Analysis Tools folder containing notebook_launcher.py and app. macOS may hide these neighboring files when opening a downloaded app.")
+    on error number -128
+      return
+    end try
+    if my toolsFolderIsValid(selectedFolder) then
+      set toolsFolder to selectedFolder
+    else
+      display alert "Choose the complete tools folder" message "Extract the complete release and select its folder containing notebook_launcher.py, app and both notebooks."
+    end if
+  end repeat
+  set embeddedFolder to (POSIX path of (path to me)) & "/Contents/Resources/JournalTools"
+  if my toolsFolderIsValid(embeddedFolder) then
+    set pythonExecutable to embeddedFolder & "/app/python/bin/python3"
+    set requestedPython to my environmentValue("JOURNAL_TOOLS_PYTHON")
+    if requestedPython is not "" then set pythonExecutable to requestedPython
+    set commandLine to "/usr/bin/env PYTHONDONTWRITEBYTECODE=1 " & quoted form of pythonExecutable & " -I -B " & quoted form of (embeddedFolder & "/app/macos_bootstrap.py") & " " & quoted form of embeddedFolder
+  else
+    set commandLine to "/usr/bin/env JOURNAL_TOOLS_BUILD_PYTHON=" & quoted form of {applescript_string('' if portable else sys.executable)} & " /bin/bash " & quoted form of (toolsFolder & "/app/launch_notebook.sh") & " " & quoted form of toolsFolder
+  end if
+  repeat with envName in {{"JOURNAL_TOOLS_PYTHON", "JOURNAL_TOOLS_NO_DIALOG", "JOURNAL_TOOLS_WORKSPACE", "JOURNAL_TOOLS_PROJECTS_ROOT"}}
+    set envValue to my environmentValue(envName as text)
+    if envValue is not "" then set commandLine to "/usr/bin/env " & (envName as text) & "=" & quoted form of envValue & " " & commandLine
+  end repeat
+  if checkOnly then
+    do shell script commandLine & " --check"
     return
   end if
   set logFolder to (POSIX path of (path to library folder from user domain)) & "Logs/Journal Analysis Tools"
   do shell script "/bin/mkdir -p " & quoted form of logFolder
   set logFile to logFolder & "/launcher.log"
-  set commandLine to "/usr/bin/env JOURNAL_TOOLS_BUILD_PYTHON=" & quoted form of {applescript_string('' if portable else sys.executable)} & " /bin/bash " & quoted form of (toolsFolder & "/app/launch_notebook.sh") & " " & quoted form of toolsFolder
   do shell script "umask 077; /usr/bin/nohup " & commandLine & " </dev/null >>" & quoted form of logFile & " 2>&1 &"
 end run
 '''
@@ -129,6 +186,33 @@ def validate_macos_app(bundle):
         detail = result.stderr.strip() or 'App signature validation failed.'
         raise OSError(f'This destination cannot preserve a valid macOS app: {detail}\n{hint}')
 
+
+
+def embed_macos_tools(root, bundle):
+    """Keep downloaded code/runtime inside the signed app, visible during translocation."""
+    payload = bundle / 'Contents/Resources/JournalTools'
+    payload.mkdir(parents=True)
+    for name in ('notebook_launcher.py', 'requirements.txt', 'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb'):
+        shutil.copyfile(root / name, payload / name)
+    if (root / 'RELEASE.json').is_file():
+        shutil.copyfile(root / 'RELEASE.json', payload / 'RELEASE.json')
+    # The release root is already populated from the package source whitelist.
+    shutil.copytree(root / 'app', payload / 'app', copy_function=shutil.copy,
+                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.DS_Store'))
+    if not (payload / 'app/macos_bootstrap.py').is_file():
+        raise FileNotFoundError('Missing Mac bootstrap in the release payload.')
+    # Python-build-standalone ships unsigned executables. Sign all Mach-O helpers
+    # and extensions before sealing the outer app; never strip quarantine on startup.
+    magic = {bytes.fromhex(value) for value in ('feedface', 'cefaedfe', 'feedfacf', 'cffaedfe',
+                                               'cafebabe', 'bebafeca', 'cafebabf', 'bfbafeca')}
+    for binary in sorted((payload / 'app/python').rglob('*')):
+        if binary.is_file():
+            with binary.open('rb') as stream:
+                is_macho = stream.read(4) in magic
+            if is_macho:
+                subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(binary)],
+                               check=True, capture_output=True, text=True)
+    return payload
 
 def install(root, destination, *, replace=False, portable=False):
     root = Path(root).resolve()
@@ -154,7 +238,9 @@ def install(root, destination, *, replace=False, portable=False):
         icon = root/'app'/'assets'/'app.icns'
         if icon.is_file():
             shutil.copyfile(icon, compiled/'Contents'/'Resources'/'applet.icns')
-        # The icon changes bundle resources, so sign after all resources are set.
+        if portable and (root / 'app/python').is_dir():
+            embed_macos_tools(root, compiled)
+        # Sign after embedding the runtime and setting all resources.
         subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(compiled)],
                        check=True, capture_output=True, text=True)
         # Publication still stages on the destination filesystem, preserving the
