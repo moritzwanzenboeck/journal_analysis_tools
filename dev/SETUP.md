@@ -154,7 +154,7 @@ notebook and choose the existing project in **Project folder**.
 | A saved paper is missing from the JSON list | Scan again after saving externally. Only full-paper categorization JSON is listed, not Crossref or sampling reports. You can also load a file by path or upload. |
 | Saving reports that files exist | Review the paper prefix and enable **Overwrite existing files** only to replace that saved pair. All saves in a project use `paper_categorizations/`. |
 | Loading or changing paper reports unsaved work | Save the current paper first, or explicitly enable **Allow replacing the current unsaved paper**. |
-| Counts disappear after editing cleaned text | Review the headings and click **Apply reviewed outline** to rebuild counts and assignments. |
+| Counts pause while editing a Markdown heading | Finish the title after `# ` or `## `; counts and assignments resume automatically. |
 | A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
 | A long title list is clipped | Scroll vertically within its summary cell. On a narrow window, scroll the whole table horizontally. Buttons retain their positions. |
 | DOI lookup stays on “Looking up…” after updating the tools | Reload the updated notebook page and run all cells. Startup refreshes an outdated imported backend; keep the notebook and `app/` files together. Lookup errors release both search buttons so you can retry. |
@@ -205,29 +205,11 @@ Logs and notebook links can contain local access tokens. Share only the relevant
 error text when requesting help.
 
 
-## Interactive selection editor in a source checkout
+## Editing paper headings
 
-The text notebook's selectable editor requires `anywidget` as well as
-`ipywidgets`. Both are in `requirements.txt` and in compiled platform downloads.
-After updating source code, install the requirements into the same environment
-that starts Jupyter, restart the service and run all cells again. Project copies
-of the text notebook are self-contained; update their notebook template before
-using the new controls. Existing categorization JSON remains loadable.
-
-
-### Safari: AnyView / AnyModel fails to create
-
-The tested widget frontend is pinned to **anywidget 0.9.16**. Newer releases use
-`AbortSignal.any` when creating a view, which fails in older Safari versions
-before the cleaned-paper editor renders. Install the repository requirements
-using the same Python that starts Jupyter. For a source checkout:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-Then stop and start **Clean and count text**, reload the browser page, and run
-all cells. A kernel-only restart leaves the server's frontend extension loaded.
-Save working categorizations as JSON first. Platform builds include the pinned
-package; no browser scripts are fetched from a CDN. The notebook checks the
-package version and gives a setup message for an incompatible installation.
+The full-paper editor uses standard ipywidgets controls. Mark heading lines with
+`# `, `## `, `### ` and so on through six levels. Changes update the section list
+and counts automatically. The earlier custom anywidget editor is no longer
+required; an older installed copy can remain without affecting this workflow.
+After updating the notebook, save current paper work as JSON, reload the page
+and run all cells. Previously saved JSON remains supported.

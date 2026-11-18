@@ -14,16 +14,6 @@ import test_paper_categorization as paper_tests
 
 
 class SelectedTextTests(unittest.TestCase):
-    def test_inline_selection_editor_matches_development_source(self):
-        import ast
-        import nbformat
-        root=Path(__file__).resolve().parents[2]
-        notebook=nbformat.read(root/'clean_and_count_text.ipynb',as_version=4)
-        inline=next(c.source for c in notebook.cells if 'class PaperSelectionEditor' in c.source)
-        def editor(source):
-            return next(ast.dump(n,include_attributes=False) for n in ast.parse(source).body if isinstance(n,ast.ClassDef) and n.name=='PaperSelectionEditor')
-        self.assertEqual(editor(inline),editor((root/'dev/selection_widget.py').read_text()))
-
     def test_bare_numbered_subsections_survive_cleanup(self):
         raw='1. Introduction\nOpening.\n2.2\nWe examine the data.\n2.3.\nA final result!'
         text=tools.paper_clean_text(raw)
@@ -143,21 +133,17 @@ class ProjectCategoryTests(unittest.TestCase):
             self.assertEqual(summary['papers'][0]['path'],newest)
             self.assertEqual(summary['papers'][0]['status'],'1 unassigned')
 
-    def test_text_edit_reset_boundary_workflow_retains_edited_prose(self):
+    def test_legacy_text_boundaries_reopen_as_markdown_and_remain_editable(self):
         s=notebook_state()
-        s['paper_original'].value='First body paragraph.\nSecond body paragraph.';s['paper_clean_button'].click()
-        text=s['paper_cleaned'].value;start=text.index('Second')
-        s['paper_cleaned'].selection={'start':start,'end':len(text),'snapshot':text}
-        s['paper_selection_category'].value='Methods';s['paper_assign_selection_button'].click()
-        edited=text.replace('First body','Changed body')
-        s['paper_cleaned'].value=edited;s['paper_rebuild_button'].click()
-        self.assertIn('Selected-text boundaries',s['paper_status'].value)
-        s['paper_reset_boundaries_button'].click()
-        self.assertEqual(s['paper_state']['document']['cleaned_text'],edited)
-        self.assertEqual(s['paper_state']['document']['manual_boundaries'],[])
+        text='First body paragraph.\n\nSecond body paragraph.'
+        doc=tools.paper_make_document(text,'')
+        doc=tools.paper_select_range(doc,text.index('Second'),len(text),'Methods','Selected part')
+        s['paper_load_document'](tools.paper_export_document(doc))
+        self.assertIn('# Selected part',s['paper_cleaned'].value)
+        s['paper_cleaned'].value=s['paper_cleaned'].value.replace('First body','Changed body')
+        self.assertIn('Changed body',s['paper_state']['document']['cleaned_text'])
         self.assertTrue(s['paper_is_current']())
-        self.assertEqual(len(s['paper_state']['document']['units']),1)
-        self.assertEqual(s['paper_state']['document']['units'][0]['category'],'Unassigned')
+        self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Methods')
 
     def test_failed_category_publication_rolls_back_every_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -198,9 +184,9 @@ class ProjectCategoryTests(unittest.TestCase):
             s['paper_custom_categories'].value='Institutions';s['paper_apply_categories_button'].click()
             s['paper_sample_choice'].value=context['papers'][0]['doi'];s['paper_use_sample_button'].click()
             s['paper_original'].value='First paragraph.\nSecond paragraph.';s['paper_clean_button'].click()
-            text=s['paper_cleaned'].value;start=text.index('Second')
-            s['paper_cleaned'].selection={'start':start,'end':len(text),'snapshot':text,'text':text[start:]}
-            s['paper_selection_category'].value='Institutions';s['paper_assign_selection_button'].click()
+            s['paper_cleaned'].value='# First section\nFirst paragraph.\n\n# Second section\nSecond paragraph.'
+            uid=s['paper_state']['document']['units'][1]['id']
+            s['paper_state']['dropdowns'][uid].value='Institutions'
             self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Institutions')
             s['paper_save_button'].click()
             s['workflow_tabs'].selected_index=2
@@ -212,11 +198,7 @@ class ProjectCategoryTests(unittest.TestCase):
             self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Unassigned')
             self.assertIn(s['paper_project_folder'],s['paper_project_controls'].children)
             self.assertLess(s['paper_workflow'].children.index(s['paper_sample_choice']),s['paper_workflow'].children.index(s['paper_original']))
-            # Selection state must match the visible text; stale frontend events cannot change a newer paper.
-            before=copy.deepcopy(s['paper_state']['document'])
-            s['paper_cleaned'].selection={'start':0,'end':5,'snapshot':'different'}
-            s['paper_assign_selection_button'].click()
-            self.assertEqual(s['paper_state']['document'],before)
+
 
 
 if __name__=='__main__':unittest.main()

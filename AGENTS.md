@@ -65,17 +65,16 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   Verify the compiled Finder app itself, plus real embedded Python and kernels;
   the shell shortcut alone is insufficient release-startup coverage.
 
-- Keep browser selections local and Unicode-safe. Selected body spans use virtual
-  boundaries; their labels never add counted words. Heading/boundary removal
-  retains prose and marks merged assignments Unassigned. Keep the inline editor
-  class in parity with `dev/selection_widget.py`.
+- Use native notebook text controls and Markdown `#` through `######` for heading
+  editing. Prefix edits update structure/counts live; canonical saved text omits
+  markers. Preserve old JSON and virtual-label counts when reloading. Retain
+  matching labels and reset merged parts to Unassigned when a marker is removed.
 - Project categories live in `paper_categorizations/categories.json`. Removing
   one resets all saved and active assignments to Unassigned with transactional
   rollback; preserve file mtimes so newest-version resolution remains stable.
   The project summary counts the latest saved JSON once per sampled DOI and
   reports missing/invalid papers without silently substituting an older file.
 
-- Keep anywidget on the tested browser-compatible pin. The browser API regression
-  check removes `AbortSignal.any` before loading Jupyter; Python-only widget
-  tests cannot detect a failed AnyView. A frontend dependency update requires a
-  full-service restart and page reload, not just a kernel restart.
+- The editor must work without a custom browser module or anywidget dependency.
+  Keep the browser check that removes `AbortSignal.any` to catch regressions on
+  older Safari, alongside the normal native widget and fixed-layout checks.

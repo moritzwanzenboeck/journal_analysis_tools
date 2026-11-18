@@ -21,6 +21,7 @@ PAPER_UNASSIGNED = "Unassigned"
 PAPER_EXCLUDED = "Exclude from summary"
 PAPER_LABELS = (PAPER_UNASSIGNED, *PAPER_CATEGORIES, PAPER_EXCLUDED)
 PAPER_NUMBERED_TITLE = re.compile(r"^(\d+(?:\.\d+)*)(?:\.)?\s+([^\W\d_].*)$", re.UNICODE)
+PAPER_MARKDOWN_HEADING = re.compile(r"^ {0,3}(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$")
 PAPER_BARE_NUMBER = re.compile(r"^([1-9]\d?(?:\.[1-9]\d?){1,5})\.?$")
 PAPER_KNOWN_TITLES = {
     "abstract", "introduction", "literature review", "related literature", "related work",
@@ -36,8 +37,11 @@ PAPER_KNOWN_TITLES = {
 
 
 def paper_detect_headings(text):
-    """Suggest short numbered/unnumbered heading lines; the outline remains editable."""
+    """Suggest initial headings; explicit Markdown markers take precedence."""
     lines = normalize_newlines(text).split("\n")
+    explicit = paper_markdown_headings(text)
+    if explicit:
+        return explicit
     headings = []
     small_words = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"}
     for index, raw in enumerate(lines):
@@ -93,7 +97,8 @@ def paper_clean_text(text, keep_hyphens=()):
         body = "\n".join(lines[cursor:heading["line"] - 1]).strip()
         if body:
             pieces.append(clean_text(body))
-        pieces.append(heading["title"])
+        raw = lines[heading["line"] - 1].strip()
+        pieces.append(raw if PAPER_MARKDOWN_HEADING.fullmatch(raw) else heading["title"])
         cursor = heading["line"]
     body = "\n".join(lines[cursor:]).strip()
     if body:
@@ -739,3 +744,121 @@ def paper_report_tsv(tables):
         for row in table["rows"]:
             writer.writerow([paper_report_value(value) for value in row])
     return buffer.getvalue()
+
+
+
+def paper_markdown_headings(text, strict=False):
+    """Read ATX headings outside fenced blocks, with explicit levels 1–6."""
+    headings, fence = [], None
+    for number,line in enumerate(normalize_newlines(text).split("\n"),1):
+        fenced = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$",line)
+        if fenced:
+            marker, tail = fenced.groups()
+            if fence is None:
+                fence = marker
+            elif marker[0] == fence[0] and len(marker) >= len(fence) and not tail.strip():
+                fence = None
+            continue
+        if fence is not None:
+            continue
+        match = PAPER_MARKDOWN_HEADING.fullmatch(line)
+        if match:
+            title = (match.group(2) or "").strip()
+            title = re.sub(r"(?:^|[ \t]+)#+[ \t]*$","",title).strip()
+            if not title:
+                if strict:
+                    raise ValueError(f"Line {number}: add a heading title after the # markers.")
+                continue
+            headings.append({"title":title,"level":len(match.group(1)),"line":number})
+    return headings
+
+
+def paper_suggest_markdown(text):
+    """Seed editable Markdown headings once; later edits use explicit markers only."""
+    text = normalize_newlines(text)
+    if paper_markdown_headings(text):
+        return text
+    by_line = {h["line"]:h for h in paper_detect_headings(text)}
+    return "\n".join(("#"*by_line[n]["level"] + " " + line.strip()) if n in by_line else line
+                     for n,line in enumerate(text.split("\n"),1))
+
+
+def paper_document_markdown(document):
+    """Display existing printed/legacy virtual headings without changing saved prose."""
+    parts = []
+    for unit in document["units"]:
+        heading = "#"*unit["level"] + " " + unit["title"] if unit["level"] else ""
+        parts.append("\n\n".join(piece for piece in (heading,unit["body"]) if piece))
+    return "\n\n".join(parts)
+
+
+def paper_make_markdown_document(markdown_text, *, previous=None, **settings):
+    """Build canonical text without Markdown syntax; retain matching labels safely."""
+    text = normalize_newlines(markdown_text)
+    if not text.strip():
+        raise ValueError("Paste or load paper text first.")
+    lines = text.split("\n")
+    headings = paper_markdown_headings(text,strict=True)
+    parts = []
+    preamble_end = headings[0]["line"] - 1 if headings else len(lines)
+    preamble = "\n".join(lines[:preamble_end]).strip()
+    if preamble:
+        parts.append({"title":"","level":0,"body":preamble})
+    for index,heading in enumerate(headings):
+        end = headings[index+1]["line"]-1 if index+1<len(headings) else len(lines)
+        parts.append({"title":heading["title"],"level":heading["level"],"body":"\n".join(lines[heading["line"]:end]).strip()})
+    old_units = (previous or {}).get("units",[])
+    matches, available = {}, set(range(len(old_units)))
+    # First match titles (preferring identical bodies), then uniquely renamed titles.
+    for index,part in enumerate(parts):
+        candidates = [i for i in sorted(available) if old_units[i]["title"] == part["title"]]
+        if candidates:
+            found = next((i for i in candidates if old_units[i]["body"] == part["body"]),candidates[0])
+            matches[index] = old_units[found]
+            available.remove(found)
+    for index,part in enumerate(parts):
+        if index in matches or not part["body"]:
+            continue
+        candidates = [i for i in available if old_units[i]["body"] == part["body"] and bool(old_units[i]["level"]) == bool(part["level"])]
+        if len(candidates) == 1:
+            found = candidates[0]
+            matches[index] = old_units[found]
+            available.remove(found)
+    chunks, real, virtual, labels = [], [], [], []
+    offset = 0
+    for index,part in enumerate(parts):
+        if chunks:
+            chunks.append("\n\n")
+            offset += 2
+        old = matches.get(index)
+        is_virtual = bool(old and old.get("virtual"))
+        if part["level"] and is_virtual:
+            virtual.append({"offset":offset,"level":part["level"],"title":part["title"]})
+            piece = part["body"] or "\n"
+        elif part["level"]:
+            real.append({"title":part["title"],"level":part["level"],"line":"".join(chunks).count("\n")+1})
+            piece = part["title"] + ("\n\n"+part["body"] if part["body"] else "")
+        else:
+            piece = part["body"]
+        chunks.append(piece)
+        offset += len(piece)
+        label = old["category"] if old else PAPER_UNASSIGNED
+        # Removing a marker merges prose into another section. Require review of
+        # that broader span rather than silently extending a previous label.
+        for removed_index in available:
+            removed = old_units[removed_index]
+            if (removed["level"] and ((removed["body"] and removed["body"] in part["body"])
+                         or removed["title"] in part["body"].splitlines())):
+                label = PAPER_UNASSIGNED
+        labels.append(label)
+    canonical = "".join(chunks)
+    for key in ("paper_name","source_text","keep_hyphens","include_heading_words","paper_metadata","project_metadata","custom_categories"):
+        if key not in settings and previous and key in previous:
+            settings[key] = previous[key]
+    # Structural parsing uses explicit line anchors, including repeated titles.
+    doc = paper_make_document(canonical,"",manual_boundaries=[],**settings)
+    doc["units"] = paper_partition(canonical,real,virtual)
+    doc["manual_boundaries"] = virtual
+    for unit,label in zip(doc["units"],labels):
+        unit["category"] = label if label in paper_labels(doc) else PAPER_UNASSIGNED
+    return doc

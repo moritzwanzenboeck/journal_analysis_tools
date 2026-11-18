@@ -31,7 +31,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 # Increment with the required version in the project notebook when its backend API changes.
-PROJECT_NOTEBOOK_API_VERSION = 2
+PROJECT_NOTEBOOK_API_VERSION = 3
 
 FIELDS = (
     "bibtex_key", "doi", "title", "authors", "journal", "year", "volume",
@@ -581,7 +581,7 @@ def _write_project(destination, template, config, rows, selected, selection_repo
         "the paper selector at the top of the full-paper tab reads its selected papers. Use Start / reopen paper, or Associate current text "
         "for a paper already pasted. Save cleaned text and reloadable categorization JSON into this project's "
         "paper_categorizations/ folder. Saved JSON lists existing categorizations throughout the project. "
-        "Mark headings or select body text to assign categories directly. Manage project categories above the tabs; "
+        "Mark heading lines with #, ##, ### through six levels in the cleaned text; counts update live. Manage project categories above the tabs; "
         "removing a custom category resets its assignments to Unassigned in all saved papers. "
         "The Project summary tab totals the latest saved JSON per paper and shows missing or incomplete papers. "
         "Editorials, front/back matter and similar non-scientific articles are excluded from project selections. "

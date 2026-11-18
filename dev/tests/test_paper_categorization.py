@@ -132,7 +132,8 @@ class FullPaperTests(unittest.TestCase):
         self.assertIn('summary incomplete',warning.value)
         self.assertIn('paper-unassigned',s['paper_state']['section_widgets'][parent['id']]._dom_classes)
         s['paper_cleaned'].value+='\n\nAn edit.'
-        self.assertIn('Apply the reviewed outline',warning.value)
+        self.assertIn('summary incomplete',warning.value)
+        self.assertTrue(s['paper_is_current']())
 
     def test_title_buttons_copy_one_title_per_line(self):
         s=self.s;doc=populate(s)
@@ -188,25 +189,23 @@ class FullPaperTests(unittest.TestCase):
         self.assertEqual(doc['units'][5]['category'],'Conclusion')
         self.assertEqual(doc['units'][6]['category'],'Unassigned')
 
-    def test_dirty_edits_disable_stale_counts_and_rebuild_retains_labels(self):
+    def test_live_edits_keep_counts_current_and_retain_matching_labels(self):
         s=self.s;doc=populate(s)
         uid=doc['units'][1]['id'];s['paper_state']['dropdowns'][uid].value='Introduction'
         text=s['paper_cleaned'].value
+        dropdown=s['paper_state']['dropdowns'][uid]
         s['paper_cleaned'].value=text+'\n\nAdditional paragraph.'
-        self.assertTrue(s['paper_save_button'].disabled)
-        self.assertTrue(s['paper_copy_table_button'].disabled)
-        self.assertEqual(s['paper_section_rows'].children,())
-        s['paper_cleaned'].value=text
         self.assertFalse(s['paper_save_button'].disabled)
+        self.assertFalse(s['paper_copy_table_button'].disabled)
+        self.assertIs(s['paper_state']['dropdowns'][uid],dropdown)
         s['paper_cleaned'].value=text.replace('A socio-economic question?','A changed socio-economic question?')
-        s['paper_rebuild_button'].click()
         self.assertTrue(s['paper_is_current']())
         self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Introduction')
         before=copy.deepcopy(s['paper_state']['document'])
-        s['paper_outline'].value='1 | Missing heading'
-        s['paper_rebuild_button'].click()
-        self.assertIn('not found',s['paper_status'].value)
+        s['paper_cleaned'].value+='\n\n## '
+        self.assertIn('add a heading title',s['paper_status'].value)
         self.assertEqual(s['paper_state']['document'],before)
+        self.assertTrue(s['paper_save_button'].disabled)
 
     def test_summary_copy_native_and_fallback_and_legacy_independence(self):
         s=self.s

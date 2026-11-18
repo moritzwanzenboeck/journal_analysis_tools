@@ -153,9 +153,10 @@ from the distributed notebooks.
 The **Categorize full paper** tab uses the same punctuation, footnote, p-value
 and hyphen cleanup rules as the original workflow. It protects detected headings
 before joining body lines. It recognizes numbered headings (including bare dotted numbers such as `2.2`) and conservative
-unnumbered candidates; this is a heuristic, so review the outline. Each outline
-entry has `level | exact heading title`, with levels 1–6. Duplicate titles are
-matched in order. Text before the first heading is a separate preamble unit.
+unnumbered candidates; this is a heuristic, so review the outline. Suggested headings are prefixed with Markdown markers in the cleaned editor.
+`#` through `######` set levels 1–6; a space separates the prefix and title.
+After cleanup, only explicitly marked lines define headings. Duplicate titles
+are matched using their body text and document order. Text before the first heading is a separate preamble unit.
 
 Each unit owns the body text from its heading up to the next heading. A parent's
 body does not include its children's bodies. This prevents duplicate word and
@@ -167,11 +168,16 @@ titles do not add words or paragraphs. Unassigned units need review; excluded
 units deliberately contribute no category totals. The nine default summary rows and any project custom-category rows remain
 fixed even when a category is empty. Copy buttons read current values.
 
-Editing the cleaned text or outline invalidates the displayed categorization
-until **Apply reviewed outline** is clicked. Matching headings retain labels
-when rebuilding. **Fill labels from titles / parents** suggests labels only on
-request and fills unassigned units. A parent assignment propagates only when
-**Apply to subsections** is clicked. Individual subsection labels remain editable.
+The native cleaned-paper textarea updates structure, counts and summaries as you
+edit Markdown headings or body text. Matching headings retain their labels;
+new headings start Unassigned. Renames with a uniquely matching body retain the
+previous label. Removing a prefix retains the heading words as body text and
+resets the merged assignment to Unassigned for review. A bare unfinished marker
+such as `## ` displays a prompt and blocks saving/copying stale counts until a
+title is entered. The previous valid document remains available while typing.
+**Fill labels from titles / parents** fills unassigned units only on request.
+Parent assignments propagate through **Apply to subsections**; child labels
+remain editable.
 
 ### Project-aware selection and persistence
 
@@ -224,26 +230,27 @@ including organisation authors. Names are read from the preloaded record; no
 extra lookup is required. Missing author metadata displays **Not available**.
 
 
-### Selecting text and project categories
+### Markdown headings and project categories
 
-The cleaned-paper editor uses an inline anywidget module, with no remote scripts.
-Browser UTF-16 selection offsets are converted to Python Unicode code points;
-a selection includes a snapshot of its text so stale selections cannot annotate
-a newer paper. Marking a title puts it on its own line and retains its words.
-Existing heading levels can be changed. Removing a boundary retains the text and
-resets the merged part to Unassigned. Clearing assignments resets whole parts
-intersecting the selection, while keeping their boundaries.
+The cleaned-paper editor is a standard ipywidgets textarea. It requires no
+custom browser module. Heading prefixes use one to six `#` characters and a
+space at the start of a line (up to three leading spaces). Optional trailing
+hashes are omitted from the title. Inline hashes, escaped prefixes and lines
+inside backtick/tilde fences remain body text. Cleanup protects explicitly
+marked heading lines, or seeds markers from the existing conservative detector
+for unmarked source text. Editing never silently reruns that detector.
 
-Selecting body text creates virtual boundaries at its start and end as needed;
-no synthetic title is inserted into the cleaned text or counted as words. Select
-complete words; selections overlapping real heading lines are rejected. Existing
-headings and section dropdowns can be used to label such parts instead. Virtual
-boundaries must be removed before manually changing the prose. **Reset text
-boundaries** applies the current outline without the virtual boundaries and
-discards their assignments, so text edits never silently shift saved ranges.
-Schema-1 JSON adds optional `manual_boundaries` and `custom_categories`; old files
-without these fields remain supported. Structural offsets are recomputed and
-validated on load. The cleaned TXT retains the full prose.
+The JSON and cleaned TXT keep canonical text without Markdown heading markers.
+Printed titles remain in that text and use the saved heading-word option;
+markers contribute no words or paragraphs. Reload reconstructs the editable
+Markdown view from stored section levels. Original pasted source remains
+separate. Old schema-1 files, including selected-text `manual_boundaries`, are
+supported: old virtual labels are displayed as heading lines but remain virtual
+for counting and are omitted from canonical prose. They can be edited without
+clearing boundaries first. No JSON migration overwrites a file on load.
+
+Ordinary body edits update existing section/count widgets in place. Changes to
+headings rebuild section rows as needed while keeping the summary grid fixed.
 
 Project selection is above the workflow tabs and the paper/saved-file selectors
 are at the top of the full-paper tab. Project category names are stored in

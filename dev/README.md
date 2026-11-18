@@ -166,7 +166,7 @@ This starts an isolated local Jupyter service and headless browser, uses a
 synthetic 10-paper project, and checks long-title wrapping, stable copy-button
 positions after relabeling, preview hiding, narrow windows and
 the locked project save folder. It also tests actual Unicode text selection,
-heading mark/remove, selected-text reassignment, custom-category deletion and
+live Markdown heading levels/removal, custom-category deletion and
 the all-paper summary. It does not use the system clipboard. Pass
 `--browser-executable` to use an installed Chrome/Chromium instead of downloading
 a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
@@ -229,11 +229,13 @@ GUI and kernels. CI does not automate macOS Gatekeeper approval dialogs.
 
 ## Interactive categorization model
 
-`dev/selection_widget.py` is the editable source of the inline `PaperSelectionEditor`
-class embedded in the text notebook. Keep them identical. The runtime dependency
-`anywidget` is installed at build/setup time and bundled in platform downloads;
-no frontend CDN or runtime installation is used. Preserve the self-contained
-notebook and AST parity with `app/paper_tools.py` and `app/text_tools.py`.
+The cleaned-paper editor is a native ipywidgets Textarea. It stores an editable
+Markdown view separately from canonical saved text. Keep the model inline and
+in parity with `app/paper_tools.py`. `paper_make_markdown_document` parses only
+explicit marked lines, preserves matching labels, and resets merged spans after
+heading removal. No anywidget/browser-extension dependency is needed.
+`dev/tests/test_markdown_headings.py` checks live edits, marker parsing, counts,
+legacy virtual sections, incomplete-heading recovery and save/reload.
 
 `dev/tests/test_interactive_categories.py` exercises exact/virtual heading
 boundaries, Unicode offsets, legacy JSON, category removal rollback, newest-file
@@ -259,20 +261,15 @@ covers these rules, report copying, metadata fallback and widget reuse.
 The browser layout check also covers report headers, rows and stable copy buttons.
 
 
-## Browser widget compatibility
+## Browser compatibility
 
-Keep `anywidget==0.9.16` aligned in runtime requirements, the notebook setup cell
-and `dev/selection_widget.py`. The 0.9.17+ browser runtime calls
-`AbortSignal.any` before rendering a view; a polyfill inside the editor render
-function arrives too late. The compatibility check must cover the frontend,
-not just Python imports and widget creation. Exercise a browser without the API:
+The editor uses the built-in ipywidgets textarea, with no custom JavaScript
+module. The optional browser check can still remove the API that previously
+failed in older Safari, confirming the complete workflow without it:
 
 ```bash
 python dev/check_paper_layout.py --without-abort-signal-any
 ```
 
-This runs the full selection/report checks with `AbortSignal.any` removed before
-page load. Ordinary browser checks remain available without the flag. Version
-mismatches give a notebook setup error with a full-service restart instruction.
-`dev/tests/test_widget_compatibility.py` checks the installed frontend assets and
-that diagnostic. Do not loosen the pin without rechecking browser support.
+Run the same check without the flag for a normal browser. Install runtime
+requirements in the isolated test environment; anywidget is not required.

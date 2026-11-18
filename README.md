@@ -13,10 +13,10 @@ No Python installation, setup commands or compilation are needed.
 
 Double-click **Journal Notebook Launcher** in the extracted tools folder:
 
-| Your computer | App to open |
-| --- | --- |
-| Windows (`windows-x86_64` ZIP) | **Journal Notebook Launcher.exe** |
-| Intel Mac (`macos-x86_64` ZIP) | **Journal Notebook Launcher.app** |
+| Your computer                           | App to open                             |
+| --------------------------------------- | --------------------------------------- |
+| Windows (`windows-x86_64` ZIP)        | **Journal Notebook Launcher.exe** |
+| Intel Mac (`macos-x86_64` ZIP)        | **Journal Notebook Launcher.app** |
 | Apple Silicon Mac (`macos-arm64` ZIP) | **Journal Notebook Launcher.app** |
 
 Keep the extracted tools on a local disk. On Windows keep the app beside the
@@ -51,13 +51,9 @@ warning. For a trusted download from this repository's Releases page:
 If **Open Anyway** is missing, try opening the app again and return to
 **Privacy & Security**. Apple records an exception for this specific app, so
 later launches can use the normal double-click. See
-[Apple's instructions for safely opening apps](https://support.apple.com/en-us/102445).
+[Apple&#39;s instructions for safely opening apps](https://support.apple.com/en-us/102445).
 
-Developer ID signing and Apple notarization are the long-term distribution
-solution; the current download has not undergone that process. See
-[Apple's signing and notarization guidance](https://developer.apple.com/developer-id/).
-
-## Create a journal project
+Create a journal project
 
 1. Start **Create journal project** and run all notebook cells.
 2. Choose **Random journal sample**, enter the journal title or ISSN, click
@@ -129,16 +125,26 @@ clean-and-count workflow remains in **Clean & count (original)**.
    text you have already pasted, use **Associate current text** instead.
 3. Paste the whole paper into **Original paper**, excluding table text, figure
    notes and formulas. Review line-end hyphens, then click **Clean full paper**.
-4. Review the cleaned text and detected headings, including bare subsection numbers
-   such as `2.2`. Select a short title in **Cleaned paper**, choose a heading level
-   and click **Mark / change heading**. To change an existing heading's level,
-   select it again. **Remove boundary** keeps the words and merges the part back
-   into the text, resetting the merged part to Unassigned. The editable outline
-   remains available under **Review / correct heading boundaries**.
-   For a paper without headings, select body text, choose a category and click
-   **Assign selected text**. An optional text-section title labels the range
-   without adding words. Change labels with the section dropdowns; **Clear
-   selected assignments** resets the intersecting parts to Unassigned.
+4. Review **Cleaned paper** and mark headings directly in the text, like Markdown:
+
+   ```text
+   # 1. Introduction
+   Opening paragraph.
+
+   ## 1.1 Background
+   Subsection text.
+
+   ### Details
+   Further text.
+   ```
+
+   Cleanup suggests prefixes for detected headings. Add `# ` to mark a section,
+   `## ` for a subsection, and up to six `#` characters for deeper levels. Change
+   the number of `#` characters to change the level, or remove the prefix to
+   return a heading to body text. The section list and counts update as you type.
+   For papers without headings, insert your own heading lines at the boundaries
+   you want to categorize. Markdown prefixes are excluded from counts and the
+   saved cleaned-text file.
 5. Assign each section or subsection to Introduction, Literature Review, Theory,
    Data, Methods, Results, Discussion, Conclusion or Not categorizable. **Apply to subsections**
    assigns a parent and its descendants; individual labels can then be changed.
@@ -181,10 +187,10 @@ The report uses the latest saved JSON per DOI. Save the current paper first;
 unsaved edits are excluded. Click **Refresh project summary** after changes made
 in another notebook.
 
-Selected-text boundaries are saved in JSON alongside the categories. Remove
-them before editing the prose, or use **Reset text boundaries** afterward to
-discard those boundaries and apply the reviewed outline. Normal headings and
-the original pasted text remain available.
+Matching headings keep their category when their prose, title or level changes.
+New headings start Unassigned. Removing a heading prefix keeps its words in the
+body and resets the merged part to Unassigned for review. Older categorization
+JSON still loads; earlier text-only section labels retain their counting rules.
 
 **Show text** opens a floating section preview; click it again or **Hide text**
 to close the preview completely. The summary stays in place. Review automatic
@@ -203,13 +209,13 @@ Copy any standalone cleaned text you want to keep into your document, and save
 full-paper categorizations as JSON before stopping or restarting a tool. Saving
 the notebook itself is not a substitute for saving categorization JSON.
 
-| What you need | What to do |
-| --- | --- |
-| Open a running tool again | Click **Open notebook**. |
+| What you need                                  | What to do                                                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Open a running tool again                      | Click **Open notebook**.                                                                                                      |
 | Recover a notebook that has stopped responding | Click **Kill kernels**, reopen the notebook, then choose **Run All Cells**. This clears its working text and variables. |
-| Stop one tool | Click **Stop**. |
-| Stop a tool that will not shut down | Click **Force stop**. |
-| Finish using both tools | Close the launcher and confirm that its tools should stop. |
+| Stop one tool                                  | Click **Stop**.                                                                                                               |
+| Stop a tool that will not shut down            | Click **Force stop**.                                                                                                         |
+| Finish using both tools                        | Close the launcher and confirm that its tools should stop.                                                                          |
 
 Closing a browser tab leaves the tool running. The launcher shows each running
 tool's port and link; you do not need to choose a port yourself. Saved project
