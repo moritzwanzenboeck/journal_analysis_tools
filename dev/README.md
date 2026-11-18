@@ -257,3 +257,22 @@ supply mean/min/max and all ties get markers. Abstracts come from cleaned text
 or existing metadata without a network lookup. `dev/tests/test_project_summary_report.py`
 covers these rules, report copying, metadata fallback and widget reuse.
 The browser layout check also covers report headers, rows and stable copy buttons.
+
+
+## Browser widget compatibility
+
+Keep `anywidget==0.9.16` aligned in runtime requirements, the notebook setup cell
+and `dev/selection_widget.py`. The 0.9.17+ browser runtime calls
+`AbortSignal.any` before rendering a view; a polyfill inside the editor render
+function arrives too late. The compatibility check must cover the frontend,
+not just Python imports and widget creation. Exercise a browser without the API:
+
+```bash
+python dev/check_paper_layout.py --without-abort-signal-any
+```
+
+This runs the full selection/report checks with `AbortSignal.any` removed before
+page load. Ordinary browser checks remain available without the flag. Version
+mismatches give a notebook setup error with a full-service restart instruction.
+`dev/tests/test_widget_compatibility.py` checks the installed frontend assets and
+that diagnostic. Do not loosen the pin without rechecking browser support.

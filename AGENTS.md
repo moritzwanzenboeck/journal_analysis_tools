@@ -74,3 +74,8 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   rollback; preserve file mtimes so newest-version resolution remains stable.
   The project summary counts the latest saved JSON once per sampled DOI and
   reports missing/invalid papers without silently substituting an older file.
+
+- Keep anywidget on the tested browser-compatible pin. The browser API regression
+  check removes `AbortSignal.any` before loading Jupyter; Python-only widget
+  tests cannot detect a failed AnyView. A frontend dependency update requires a
+  full-service restart and page reload, not just a kernel restart.

@@ -4,4 +4,5 @@ ipykernel>=6,<8
 psutil>=5.9,<8
 certifi>=2024.2.2
 tzdata>=2024.1
-anywidget>=0.9,<1
+# Newer widget frontends require AbortSignal.any, absent in older Safari.
+anywidget==0.9.16

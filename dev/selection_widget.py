@@ -8,6 +8,16 @@ except ImportError as error:
     raise ImportError("Install requirements.txt (including anywidget) in the Jupyter environment, restart the service and run all cells again.") from error
 import traitlets
 
+# Keep the Python model and browser extension on the tested Safari-compatible release.
+if anywidget.__version__ != "0.9.16":
+    raise ImportError(
+        "This notebook uses anywidget 0.9.16 for Safari compatibility; "
+        f"loaded version is {anywidget.__version__}. Install the updated requirements.txt "
+        "with the Python that starts Jupyter, stop/start the notebook service, reload "
+        "the browser page and run all cells again. Restarting only the kernel does "
+        "not reload Jupyter's browser extension."
+    )
+
 
 class PaperSelectionEditor(anywidget.AnyWidget):
     value = traitlets.Unicode('').tag(sync=True)

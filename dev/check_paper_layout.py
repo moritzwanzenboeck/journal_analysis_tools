@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--browser-executable', help='Optional installed Chrome/Chromium path')
     parser.add_argument('--artifacts', type=Path, help='Keep screenshot/results in this directory')
+    parser.add_argument('--without-abort-signal-any',action='store_true',help='Emulate browsers missing AbortSignal.any, including older Safari')
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='journal-paper-browser-') as temporary:
         stage = args.artifacts.expanduser().resolve() if args.artifacts else Path(temporary)
@@ -43,6 +44,10 @@ def main():
                 browser=p.chromium.launch(executable_path=args.browser_executable,headless=True)
                 page=browser.new_page(viewport={'width':1440,'height':1000})
                 page.on('dialog',lambda dialog:dialog.dismiss())
+                browser_messages=[]
+                page.on('console',lambda message:browser_messages.append(message.text) if message.type=='error' else None)
+                if args.without_abort_signal_any:
+                    page.add_init_script('delete AbortSignal.any;')
                 page.goto(service.url,wait_until='domcontentloaded',timeout=60000)
                 deadline=time.monotonic()+40
                 while time.monotonic()<deadline:
@@ -59,6 +64,7 @@ def main():
                     page.screenshot(path=str(stage/'browser-failure.png'))
                     (stage/'browser-failure.txt').write_text(page.locator('.jp-OutputArea-output').all_text_contents().__repr__())
                     raise
+                page.get_by_role('textbox',name='Cleaned paper:',exact=True).wait_for(state='visible',timeout=15000)
                 page.get_by_role('textbox',name='Project folder:',exact=True).fill(str(project))
                 page.get_by_role('button',name='Scan project folder',exact=True).click()
                 page.get_by_role('combobox',name='Sampled paper:',exact=True).select_option(label='1. Browser paper 1')
@@ -79,6 +85,7 @@ def main():
                 }'''
                 before=page.evaluate(metrics)
                 original_top=grid.evaluate("e=>e.offsetTop")
+                page.wait_for_function("document.querySelectorAll('.paper-section-row.paper-unassigned').length===15")
                 assert page.locator('.paper-section-row.paper-unassigned').count()==15
                 data_row=page.locator('.paper-section-row').filter(has_text='2. Data').first
                 data_row.locator('select').select_option(label='Data')
@@ -89,6 +96,7 @@ def main():
                 assert all(abs(a[k]-b[k])<0.6 for a,b in zip(before,after) for k in ('x','y','w','h')),(before,after)
                 overflow=grid.locator('.paper-summary-cell,.paper-summary-content').evaluate_all("es=>es.filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({width:e.clientWidth,scroll:e.scrollWidth,cls:e.className}))")
                 assert not overflow,overflow
+                page.wait_for_function("document.querySelectorAll('.paper-section-row.paper-unassigned').length===2")
                 assert page.locator('.paper-section-row.paper-unassigned').count()==2
                 warning=page.locator('.paper-completion-warning')
                 assert '2 section(s)' in warning.inner_text()
@@ -189,10 +197,12 @@ def main():
                 page.get_by_role('tab',name='Categorize full paper',exact=True).click()
                 expect(selected_row.locator('select')).to_have_value('Unassigned')
                 assert (project/'paper_categorizations/categories.json').exists()
-                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder','Unicode browser selection','heading mark/remove','selected-text reassignment/removal','project categories and saved assignment rewrite','project-wide summary','article overview and category statistics','report copying and stable controls']}))
+                (stage/'browser-result.json').write_text(json.dumps({'status':'passed','checks':['10 sampled papers','fixed button bounds','unassigned warnings and highlights','counted Not categorizable category','no cell horizontal overflow','full preview hide','narrow viewport','locked project save folder','Unicode browser selection','heading mark/remove','selected-text reassignment/removal','project categories and saved assignment rewrite','project-wide summary','article overview and category statistics','report copying and stable controls'] + (['browser without AbortSignal.any'] if args.without_abort_signal_any else [])}))
                 print('Browser layout checks passed.'+(' Artifacts: '+str(stage) if args.artifacts else ''))
                 browser.close()
         except Exception:
+            if 'browser_messages' in locals():
+                (stage/'browser-console.txt').write_text('\n'.join(browser_messages),encoding='utf-8')
             try:
                 page.screenshot(path=str(stage/'browser-failure.png'))
                 (stage/'browser-failure.txt').write_text(page.locator('body').inner_text(),encoding='utf-8')

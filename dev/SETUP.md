@@ -213,3 +213,21 @@ After updating source code, install the requirements into the same environment
 that starts Jupyter, restart the service and run all cells again. Project copies
 of the text notebook are self-contained; update their notebook template before
 using the new controls. Existing categorization JSON remains loadable.
+
+
+### Safari: AnyView / AnyModel fails to create
+
+The tested widget frontend is pinned to **anywidget 0.9.16**. Newer releases use
+`AbortSignal.any` when creating a view, which fails in older Safari versions
+before the cleaned-paper editor renders. Install the repository requirements
+using the same Python that starts Jupyter. For a source checkout:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Then stop and start **Clean and count text**, reload the browser page, and run
+all cells. A kernel-only restart leaves the server's frontend extension loaded.
+Save working categorizations as JSON first. Platform builds include the pinned
+package; no browser scripts are fetched from a CDN. The notebook checks the
+package version and gives a setup message for an incompatible installation.
