@@ -38,6 +38,16 @@ class OutlineNotebookTests(unittest.TestCase):
         s=notebook_state();s['paper_cleaned'].value='# Introduction\nOpening.\n\n# Results\nA finding.'
         return s
 
+    def test_outline_uses_a_width_sensitive_content_mirror(self):
+        s=self.state()
+        self.assertEqual(s['paper_outline'].layout.height,'100%')
+        self.assertEqual(s['paper_outline_box'].layout.overflow,'visible')
+        draft='1 | A <long> title\n' * 40
+        s['paper_outline'].value=draft
+        self.assertIn('A &lt;long&gt; title',s['paper_outline_sizer'].value)
+        self.assertEqual(s['paper_outline_sizer'].value.count('A &lt;long&gt; title'),40)
+        self.assertIsNone(s['paper_outline_status'].layout.height)
+
     def test_field_syncs_live_and_apply_changes_markdown_and_preserves_labels(self):
         s=self.state()
         self.assertEqual(s['paper_outline'].value,'1 | Introduction\n1 | Results')

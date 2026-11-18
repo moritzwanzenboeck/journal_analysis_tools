@@ -283,3 +283,16 @@ Markdown-to-outline synchronization separate from pending drafts; copying and
 saving wait until a draft is applied or refreshed. `dev/tests/test_heading_outline.py`
 checks duplicate occurrences, invalid ordering, draft protection, virtual labels
 and category retention. The browser workflow also exercises the outline field.
+
+
+## Project report and outline sizing
+
+Project tables use proportional columns and normal page flow, with no internal
+scroll containers. The category Summary row places the mean in the Sum words
+column; table/TSV layouts omit a separate Average column. Keep those positions in
+parity in `paper_report_tables`, the HTML renderer and tests.
+`paper_fit_textarea` overlays a standard textarea on a hidden text mirror using
+CSS grid. Both use identical fonts, wrapping and padding, so outlines and copied
+report text grow at the actual browser width without custom JavaScript.
+The browser check verifies long outlines, long saved title lists and project
+reports at 1440, 900 and 520 pixels, checking scroll and content dimensions.

@@ -316,8 +316,8 @@ title/DOI; abstract-count tooltips identify the source.
   remain outside body totals.
 
 Each normal/custom category has a table with article number, words per title,
-sum words, Average, Min, Max and paragraphs. Title averages use only that
-category's own printed top-level headings. The Summary row gives the mean,
+sum words, Min, Max and paragraphs. Title averages use only that
+category's own printed top-level headings. The Summary row puts the mean directly under **Sum words**, followed by the
 minimum and maximum of **positive category word counts** across saved papers.
 Missing/invalid papers and zero-word categories are excluded from these
 statistics. Partially assigned saved papers contribute their current category
@@ -330,5 +330,11 @@ counts remain zero. Decimal output uses up to nine fractional digits without
 thousands separators or division-error strings. Whole-report TSV exports use
 vertical overview/category blocks, headers and Summary rows in display order.
 Individual tables can also be copied. TSV quoting preserves cell boundaries.
-Table cells have fixed heights and copy buttons stay in place during refresh.
-The earlier aggregate category/title grid remains in a collapsed accordion.
+Project report cells wrap at the available width and all rows expand in the
+normal notebook page flow. Tables, status panels and the aggregate-title grid
+have no internal scroll areas. The earlier aggregate grid remains in a collapsed
+accordion and uses flexible columns in project mode; the individual-paper grid
+retains its existing fixed layout. The outline textarea grows with its text
+using a hidden text mirror that measures wrapping at the actual browser width,
+so long outlines remain editable without internal scrolling or custom JavaScript.
+The copied-text fallback uses the same sizing mechanism.

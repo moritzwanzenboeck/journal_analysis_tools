@@ -684,7 +684,7 @@ def paper_report_tables(summary):
     overview = {"key": "overview", "title": "Article overview", "columns": [
         "Article no.", "Total sections",
         "Total word count", "Total paragraphs", "Total words in titles", "Words per title", "Words per abstract", "Status"], "rows": [], "paper_info": [], "abstract_sources": []}
-    tables = [{"key":"category:" + cat,"category":cat,"title":cat,"columns":["Article no.","Words per title","Sum words","Average","Min","Max","Paragraphs"],"rows":[]}
+    tables = [{"key":"category:" + cat,"category":cat,"title":cat,"columns":["Article no.","Words per title","Sum words","Min","Max","Paragraphs"],"rows":[]}
               for cat in paper_categories(summary)]
     values = {cat:[] for cat in paper_categories(summary)}
     for entry in summary["papers"]:
@@ -705,20 +705,20 @@ def paper_report_tables(summary):
                 row = entry["rows"][category]
                 own = [h for h in printed if h["category"] == category]
                 words_per_title = sum(h["words"] for h in own)/len(own) if own else None
-                table["rows"].append([paper["sample_number"],words_per_title,row["words"],"","","",row["paragraphs"]])
+                table["rows"].append([paper["sample_number"],words_per_title,row["words"],"","",row["paragraphs"]])
                 if row["words"] > 0:
                     values[category].append(row["words"])
             else:
-                table["rows"].append([paper["sample_number"],None,None,"","","",None])
+                table["rows"].append([paper["sample_number"],None,None,"","",None])
     for table in tables:
         counts = values[table["category"]]
         low, high = (min(counts),max(counts)) if counts else (None,None)
         # Mark every tie, including both columns when there is only one value.
         for row in table["rows"]:
             if row[2] is not None and row[2] > 0:
-                row[4] = "x" if row[2] == low else ""
-                row[5] = "x" if row[2] == high else ""
-        table["rows"].append(["Summary","","",sum(counts)/len(counts) if counts else None,low,high,""])
+                row[3] = "x" if row[2] == low else ""
+                row[4] = "x" if row[2] == high else ""
+        table["rows"].append(["Summary","",sum(counts)/len(counts) if counts else None,low,high,""])
     return [overview,*tables]
 
 

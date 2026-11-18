@@ -80,15 +80,19 @@ class ReportMetricsTests(unittest.TestCase):
                            'rows':rows,'metrics':metrics if rows else None,'status':'Complete' if rows else 'Not saved'})
         report=tools.paper_report_tables({'papers':papers,'custom_categories':[]})
         intro=next(t for t in report if t.get('category')=='Introduction')
-        self.assertEqual(intro['rows'][-1],["Summary","","",50/3,10,30,""])
-        self.assertEqual([r[4] for r in intro['rows'][:-1]],['x','','','x',''])
-        self.assertEqual([r[5] for r in intro['rows'][:-1]],['','','x','',''])
+        self.assertEqual(intro['rows'][-1],["Summary","",50/3,10,30,""])
+        self.assertEqual(intro['columns'][2],'Sum words')
+        self.assertNotIn('Average',intro['columns'])
+        copied=list(csv.reader(io.StringIO(tools.paper_report_tsv([intro])),delimiter='\t'))
+        self.assertEqual(copied[-1][2],'16.666666667')
+        self.assertEqual([r[3] for r in intro['rows'][:-1]],['x','','','x',''])
+        self.assertEqual([r[4] for r in intro['rows'][:-1]],['','','x','',''])
         self.assertEqual(intro['rows'][1][2],0)
         self.assertIsNone(intro['rows'][4][2])
         absent=next(t for t in report if t.get('category')=='Theory')
-        self.assertEqual(absent['rows'][-1],["Summary","","",None,None,None,""])
+        self.assertEqual(absent['rows'][-1],["Summary","",None,None,None,""])
         single=tools.paper_report_tables({'papers':[papers[0]],'custom_categories':[]})[1]
-        self.assertEqual(single['rows'][0][4:6],['x','x'])
+        self.assertEqual(single['rows'][0][3:5],['x','x'])
         self.assertIsNone(report[0]['rows'][-1][1])
 
     def test_custom_category_overview_has_a_distinct_table_key(self):
@@ -141,9 +145,16 @@ class ReportIntegrationTests(unittest.TestCase):
             s['workflow_tabs'].selected_index=2
             overview=s['paper_state']['project_report_blocks']['overview'][0]
             self.assertIn('Total words in titles',overview.value)
-            self.assertEqual(s['project_summary_status'].layout.height,'76px')
-            self.assertGreater(s['project_summary_workflow'].children.index(s['project_summary_fallback']),s['project_summary_workflow'].children.index(s['project_summary_details']))
+            self.assertEqual(s['project_summary_status'].layout.min_height,'76px')
+            self.assertGreater(s['project_summary_workflow'].children.index(s['project_summary_fallback_box']),s['project_summary_workflow'].children.index(s['project_summary_details']))
             self.assertNotIn('<th scope="col">Content</th>',overview.value)
+            self.assertIsNone(overview.layout.max_height)
+            self.assertEqual(overview.layout.overflow,'visible')
+            self.assertEqual(s['paper_state']['project_summary_grid'].layout.width,'100%')
+            for value,button in s['paper_state']['project_summary_cells'].values():
+                self.assertIsNone(value.layout.max_height)
+                self.assertEqual(value.layout.overflow,'visible')
+                self.assertEqual(button.icon,'copy')
             blocks=dict(s['paper_state']['project_report_blocks'])
             s['project_summary_refresh_button'].click()
             for key,controls in blocks.items():self.assertEqual(s['paper_state']['project_report_blocks'][key],controls)

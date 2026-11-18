@@ -156,7 +156,7 @@ notebook and choose the existing project in **Project folder**.
 | Loading or changing paper reports unsaved work | Save the current paper first, or explicitly enable **Allow replacing the current unsaved paper**. |
 | Counts pause while editing a Markdown heading | Finish the title after `# ` or `## `; counts and assignments resume automatically. |
 | A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
-| A long title list is clipped | Scroll vertically within its summary cell. On a narrow window, scroll the whole table horizontally. Buttons retain their positions. |
+| Reading a long report or outline | Project summary tables and the heading-outline card expand to show their contents. Use normal notebook page scrolling. The individual-paper category grid retains its cell scrollbars. |
 | DOI lookup stays on “Looking up…” after updating the tools | Reload the updated notebook page and run all cells. Startup refreshes an outdated imported backend; keep the notebook and `app/` files together. Lookup errors release both search buttons so you can retry. |
 | A DOI lookup fails | Use a bare DOI or doi.org URL. The DOI must be a journal article registered with Crossref and have title, journal and publication-date metadata. Publisher webpages are not DOI URLs. |
 | The manual Create button is disabled | Add at least one checked paper. Correct and recheck any nonempty bulk list, or clear that input to proceed with the existing selection. |

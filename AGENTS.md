@@ -41,8 +41,9 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   projects read sampled papers from `project.json`'s CSV and always save cleaned
   text/assignment JSON in that project's `paper_categorizations/` folder. Do not
   commit user text or categorization files.
-- Update summary widgets in place, preserve fixed cell/button positions and keep
-  previews out of the document flow. Hiding a preview must clear and hide the
+- Update summary widgets in place. Keep the individual-paper grid fixed; project
+  summary tables and the outline card should wrap and expand without internal
+  scroll areas. Keep previews out of the document flow. Hiding a preview must clear and hide the
   whole panel. Maintain project, persistence and layout regression checks.
 
 - Preserve both random journal sampling and manual DOI selection. Manual lookup

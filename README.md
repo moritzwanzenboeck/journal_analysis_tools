@@ -183,7 +183,7 @@ no Content column. Body totals include assigned subsections and follow each
 paper's heading-word setting; Unassigned and excluded text are omitted.
 
 Each category, including custom categories, has its own per-article table with
-words per title, total words and paragraphs. Its Summary row shows the average,
+words per title, total words and paragraphs. Its Summary row shows the average under **Sum words**, alongside the
 minimum and maximum word count across papers where that category is present;
 zero-word and missing entries are excluded. An **x** marks every minimum/maximum
 tie. Missing analyses and unavailable abstracts show a dash; undefined averages
@@ -192,6 +192,9 @@ available, then the project's saved metadata.
 
 Copy the whole report or an individual table into Excel. The earlier aggregate
 category/title grid is available under **Aggregate category totals and titles**.
+The project tables wrap to the available width and expand to show every row;
+the heading-outline card also grows with its text. Read longer reports using
+normal notebook page scrolling.
 The report uses the latest saved JSON per DOI. Save the current paper first;
 unsaved edits are excluded. Click **Refresh project summary** after changes made
 in another notebook.
