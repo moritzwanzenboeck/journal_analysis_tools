@@ -24,8 +24,7 @@ Keep the extracted tools on a local disk. On Windows keep the app beside the
 whole `.app` into Applications. Your projects and output can stay on a shared
 drive. Opening the app downloads or installs no packages. On Mac, editable
 notebooks are copied to your user account and retained between launches.
-On macOS, approve the downloaded app in **System Settings → Privacy & Security**
-if prompted and you trust its source.
+If macOS blocks the first launch, follow the [Mac first-launch steps](#mac-first-launch-warning) below.
 
 1. Click **Start** next to the tool you want to use.
 2. Its notebook opens in your web browser. In the notebook's **Run** menu, choose
@@ -34,6 +33,29 @@ if prompted and you trust its source.
 
 If the browser does not open, click **Open notebook** in the launcher. You can
 also copy the address beside it and paste it into your browser.
+
+### Mac first-launch warning
+
+Current Mac downloads are **ad-hoc signed**, without an Apple Developer ID or
+Apple notarization. macOS may therefore show **Apple could not verify that
+Journal Notebook Launcher is free of malware** or an unidentified-developer
+warning. For a trusted download from this repository's Releases page:
+
+1. Try opening **Journal Notebook Launcher.app**. Dismiss the warning with
+   **Done** or **Cancel**.
+2. Open **Apple menu → System Settings → Privacy & Security**, then scroll to
+   **Security**.
+3. Find the message about the blocked launcher and click **Open Anyway**.
+4. Authenticate if prompted, then click **Open** in the confirmation dialog.
+
+If **Open Anyway** is missing, try opening the app again and return to
+**Privacy & Security**. Apple records an exception for this specific app, so
+later launches can use the normal double-click. See
+[Apple's instructions for safely opening apps](https://support.apple.com/en-us/102445).
+
+Developer ID signing and Apple notarization are the long-term distribution
+solution; the current download has not undergone that process. See
+[Apple's signing and notarization guidance](https://developer.apple.com/developer-id/).
 
 ## Create a journal project
 
