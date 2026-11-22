@@ -5,4 +5,63 @@
   {% for line in super().splitlines(keepends=true) if 'cdn.jsdelivr.net/npm/@fortawesome/' not in line %}
     {{- line | safe -}}
   {% endfor %}
+  <style>
+    html { overflow-x: hidden; }
+
+    #rendered_cells .jp-OutputArea-output,
+    #rendered_cells .jupyter-widgets {
+      box-sizing: border-box;
+      min-width: 0;
+      max-width: 100%;
+    }
+    #rendered_cells .jupyter-widgets { margin-inline: 0; }
+    #rendered_cells .widget-hbox { flex-wrap: wrap; gap: 4px; }
+    #rendered_cells .widget-html-content { overflow-wrap: anywhere; }
+    #rendered_cells .widget-inline-hbox > :is(input, textarea, select) { min-width: 0; }
+    #rendered_cells pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .paper-individual-summary { overflow: visible !important; }
+    .paper-individual-summary > .paper-summary-grid {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 982px !important;
+      grid-template-columns: minmax(0, 150fr) minmax(0, 250fr) minmax(0, 300fr)
+                             minmax(0, 120fr) minmax(0, 130fr) !important;
+    }
+
+    @media (max-width: 760px) {
+      #rendered_cells .widget-hbox > .widget-button { margin-left: 0 !important; }
+
+      /* Each category has one name cell followed by the four metric cells. */
+      .paper-individual-summary > .paper-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        grid-template-rows: none !important;
+      }
+      .paper-individual-summary .paper-summary-cell:nth-child(-n+5) { display: none; }
+      .paper-individual-summary .paper-summary-cell:nth-child(5n+1) {
+        grid-column: 1 / -1;
+        height: auto !important;
+        min-height: 36px !important;
+        background: #eef1f5;
+      }
+      .paper-individual-summary .paper-summary-cell:nth-child(n+6):not(:nth-child(5n+1)) {
+        height: 180px !important;
+        max-height: 180px !important;
+      }
+      .paper-individual-summary .paper-summary-cell:is(:nth-child(5n+4), :nth-child(5n+5)) {
+        height: 105px !important;
+        min-height: 105px !important;
+        max-height: 105px !important;
+      }
+      .paper-individual-summary :is(:nth-child(5n+4), :nth-child(5n+5)) > .paper-summary-content {
+        height: 32px !important;
+        min-height: 32px !important;
+      }
+      .paper-individual-summary .paper-summary-cell::before { font-weight: 600; }
+      .paper-individual-summary .paper-summary-cell:nth-child(5n+2)::before { content: 'Section titles'; }
+      .paper-individual-summary .paper-summary-cell:nth-child(5n+3)::before { content: 'Subsection titles'; }
+      .paper-individual-summary .paper-summary-cell:nth-child(5n+4)::before { content: 'Words'; }
+      .paper-individual-summary .paper-summary-cell:nth-child(5n+5)::before { content: 'Paragraphs'; }
+    }
+  </style>
 {% endblock notebook_css %}
