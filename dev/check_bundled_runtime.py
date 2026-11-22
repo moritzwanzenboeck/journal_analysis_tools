@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 import sys
 import runpy
+import tempfile
 import unittest
 import uuid
 from urllib.parse import urlencode
@@ -96,6 +97,10 @@ def check(package):
     finally:
         for service in services:
             service.force_stop()
+    dashboard = runpy.run_path(str(Path(__file__).with_name('tests')/'test_voila_service.py'))
+    with tempfile.TemporaryDirectory(prefix='bundled-voila-') as logs:
+        dashboard['check_dashboard'](unittest.TestCase(), package, logs)
+    print('Verified the bundled Voilà dashboard and both notebooks.', flush=True)
     # The bundled Tk/runtime must support the actual controls and close handler.
     gui = runpy.run_path(str(Path(__file__).with_name('tests')/'test_launcher_gui.py'))
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(gui['LauncherWindowTests'])

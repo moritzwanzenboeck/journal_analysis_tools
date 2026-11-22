@@ -1,4 +1,4 @@
-"""One small control window for the two notebook services; no analysis UI."""
+"""Control window for the local web app and standalone notebook services."""
 from __future__ import annotations
 
 import argparse
@@ -8,7 +8,7 @@ import queue
 import threading
 import webbrowser
 
-from .notebook_services import NotebookService, SERVICES
+from .notebook_services import DASHBOARD, NotebookService, SERVICES
 
 
 def main():
@@ -16,15 +16,24 @@ def main():
     from tkinter import messagebox, ttk
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--service', choices=[spec.key for spec in SERVICES])
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--service', choices=[spec.key for spec in SERVICES])
+    mode.add_argument('--classic', action='store_true', help='Open the standalone notebook controls')
     parser.add_argument('--check', action='store_true', help='Check dependencies and notebook paths without opening a window')
     args = parser.parse_args()
+    classic = args.classic or args.service is not None
+    specs = SERVICES if classic else (DASHBOARD,)
     root = Path(os.environ.get("JOURNAL_TOOLS_NOTEBOOK_ROOT", Path(__file__).resolve().parent.parent)).expanduser().resolve()
     recovery = ('Extract the complete platform ZIP again if bundled files are missing.'
                 if (root / 'app/python').is_dir() else
                 'For source checkouts, install requirements.txt in this Python environment.')
     try:
         import notebook, ipykernel, ipywidgets  # noqa: F401
+        if not classic:
+            from . import voila_app
+            for asset in (voila_app.DASHBOARD_PAGE, voila_app.NOTEBOOK_TEMPLATE):
+                if not asset.is_file():
+                    raise FileNotFoundError(f'Web app asset not found: {asset}')
         for spec in SERVICES:
             if not (root / spec.notebook).is_file():
                 raise FileNotFoundError(f'Notebook not found: {root / spec.notebook}')
@@ -41,7 +50,8 @@ def main():
             probe.destroy()
         except (tk.TclError, RuntimeError) as error:
             parser.exit(1, f'Tk could not initialise: {error}\nUse a Python installation with matching Tcl/Tk libraries.\n')
-        print('Python, Tk, Jupyter Notebook, ipykernel, ipywidgets are available.')
+        print('Python, Tk, Jupyter Notebook, ipykernel, ipywidgets' +
+              (' and Voilà are available.' if not classic else ' are available.'))
         for spec in SERVICES:
             print(f'{spec.title}: {root / spec.notebook}')
         return
@@ -51,8 +61,10 @@ def main():
     window.minsize(720, 370)
     frame = ttk.Frame(window, padding=18)
     frame.pack(fill='both', expand=True)
-    ttk.Label(frame, text='Journal notebook services', font=('', 17, 'bold')).pack(anchor='w')
-    ttk.Label(frame, text='Start a service, then run all notebook cells in your browser.').pack(anchor='w', pady=(5, 12))
+    ttk.Label(frame, text='Journal Notebook Launcher', font=('', 17, 'bold')).pack(anchor='w')
+    instructions = ('Start a service, then run all notebook cells in your browser.' if classic else
+                    'The local web app opens in your browser. Choose a tool in the navigation bar.')
+    ttk.Label(frame, text=instructions).pack(anchor='w', pady=(5, 12))
     events = queue.Queue()
     rows = {}
     closing = False
@@ -70,7 +82,7 @@ def main():
                 events.put((key, callback, None, error))
         threading.Thread(target=work, daemon=True).start()
 
-    def open_notebook(key):
+    def open_page(key):
         row = rows[key]
         url = row['service'].url
         if url:
@@ -80,8 +92,10 @@ def main():
 
     def start(key):
         row = rows[key]
-        row['message'].set('Starting Jupyter…')
-        background(key, row['service'].start, lambda _: open_notebook(key))
+        if closing or row['busy'] or row['service'].running:
+            return
+        row['message'].set('Starting Jupyter…' if classic else 'Starting Voilà…')
+        background(key, row['service'].start, lambda _: open_page(key))
 
     def stop(key, force=False):
         row = rows[key]
@@ -93,8 +107,9 @@ def main():
         if messagebox.askyesno('Kill kernels?', 'Stop all kernels for this service? Unsaved variables will be lost.', parent=window):
             row = rows[key]
             row['message'].set('Killing kernels…')
+            instructions = 'Reopen the notebook and run all cells.' if classic else 'Reload the web app.'
             background(key, row['service'].kill_kernels,
-                       lambda count: row['message'].set(f'Killed {count} kernel(s). Reopen the notebook and run all cells.'))
+                       lambda count: row['message'].set(f'Killed {count} kernel(s). {instructions}'))
 
     def render(key):
         row = rows[key]
@@ -110,7 +125,7 @@ def main():
         if row['url'].get() != address:
             row['url'].set(address)
 
-    for spec in SERVICES:
+    for spec in specs:
         box = ttk.LabelFrame(frame, text=spec.title, padding=10)
         box.pack(fill='x', pady=(0, 10))
         row = dict(service=NotebookService(spec, root), busy=False,
@@ -125,14 +140,14 @@ def main():
                 ('force', 'Force stop', lambda key=spec.key: stop(key, True)))):
             row[name] = ttk.Button(box, text=label, command=command)
             row[name].grid(row=1, column=column, sticky='w', pady=6, padx=(0, 6))
-        row['link'] = ttk.Button(box, text='Open notebook', cursor='hand2',
-                                 command=lambda key=spec.key: open_notebook(key))
+        row['link'] = ttk.Button(box, text='Open notebook' if classic else 'Open web app', cursor='hand2',
+                                 command=lambda key=spec.key: open_page(key))
         row['link'].grid(row=2, column=0, sticky='w', padx=(0, 10))
         ttk.Entry(box, textvariable=row['url'], state='readonly').grid(row=2, column=1, columnspan=4, sticky='ew')
         box.columnconfigure(4, weight=1)
         render(spec.key)
 
-    ttk.Label(frame, text='Links open the notebook and can also be copied. Closing this window stops both services.').pack(anchor='w')
+    ttk.Label(frame, text='You can copy the browser link. Closing this window stops its services and kernels.').pack(anchor='w')
 
     def close():
         nonlocal closing
@@ -140,7 +155,7 @@ def main():
             messagebox.showinfo('Please wait', 'Wait for the current service action to finish, then close the launcher.', parent=window)
             return
         if any(row['service'].running for row in rows.values()) and not messagebox.askyesno(
-                'Stop notebook services?', 'Close the launcher and stop its services and kernels? Save your notebooks first.', parent=window):
+                'Stop notebook services?', 'Close the launcher and stop its services and kernels? Save your work first.', parent=window):
             return
         closing = True
         for key, row in rows.items():
@@ -187,6 +202,8 @@ def main():
     window.after(100, poll)
     if args.service:
         window.after(200, lambda: start(args.service))
+    elif not classic:
+        window.after(200, lambda: start(DASHBOARD.key))
     try:
         window.mainloop()
     finally:

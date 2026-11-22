@@ -5,11 +5,10 @@ text copied from PDFs, and categorize whole papers by section.
 
 ## Open the app
 
-Download the ZIP for your computer from [Releases](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest),
-then extract the complete folder onto a local disk. Choose a platform ZIP under
-**Assets**; the automatic **Source code** downloads do not contain compiled apps.
-Each platform ZIP includes the app, Python and all required notebook packages.
-No Python installation, setup commands or compilation are needed.
+Open the latest [GitHub release](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest).
+Under **Assets**, download the platform ZIP for your computer and extract the
+whole folder onto a local disk. Each platform ZIP includes the compiled app,
+Python and all required notebook packages.
 
 Double-click **Journal Notebook Launcher** in the extracted tools folder:
 
@@ -26,12 +25,11 @@ drive. Opening the app downloads or installs no packages. On Mac, editable
 notebooks are copied to your user account and retained between launches.
 If macOS blocks the first launch, follow the [Mac first-launch steps](#mac-first-launch-warning) below.
 
-1. Click **Start** next to the tool you want to use.
-2. Its notebook opens in your web browser. In the notebook's **Run** menu, choose
-   **Run All Cells** to show the controls.
-3. Follow the steps below. You can use both tools at the same time.
+The local web app opens in your default browser. Choose **Create journal project**
+or **Clean and categorize papers** in the navigation bar. You can switch tools
+without clearing unsaved work while that browser tab stays open.
 
-If the browser does not open, click **Open notebook** in the launcher. You can
+If the browser does not open, click **Open web app** in the launcher. You can
 also copy the address beside it and paste it into your browser.
 
 ### Mac first-launch warning
@@ -53,9 +51,9 @@ If **Open Anyway** is missing, try opening the app again and return to
 later launches can use the normal double-click. See
 [Apple&#39;s instructions for safely opening apps](https://support.apple.com/en-us/102445).
 
-Create a journal project
+## Create a journal project
 
-1. Start **Create journal project** and run all notebook cells.
+1. Open **Create journal project** in the web app.
 2. Choose **Random journal sample**, enter the journal title or ISSN, click
    **Find journal**, and select the journal.
 3. Choose the start and end dates, the number of papers, and where to save the
@@ -70,7 +68,7 @@ an internet connection.
 
 ## Create a project from your own papers
 
-1. Start **Create journal project**, run all cells, and choose **Manual DOI selection**.
+1. Open **Create journal project** and choose **Manual DOI selection**.
 2. Use either entry method:
    - **Search one DOI:** paste a DOI or full `https://doi.org/...` URL and press
      **Enter** (or **Search DOI**). Review the dropdown result, which shows a bold
@@ -94,12 +92,12 @@ Manual projects retain the checked scientific articles in selection order; they
 are not random samples. Editorials, front/back matter, corrections and similar
 non-scientific items are rejected during DOI checks. Random selection excludes
 the same material and records the exclusions in its selection report. Their selected-paper exports use
-`_selected<N>` names in `output/`. Open the project's categorization notebook to
-select these papers at the top of **Categorize full paper**, just as with randomly sampled papers.
+`_selected<N>` names in `output/`. In **Clean and categorize papers**, select the
+project folder to load these papers in **Categorize full paper**.
 
 ## Clean and count text
 
-1. Start **Clean and count text** and run all notebook cells.
+1. Open **Clean and categorize papers** and choose **Clean & count (original)**.
 2. Paste the copied PDF text into **Original text**.
 3. Click **Find line-end hyphens**. Select any words that should keep their hyphen,
    then click **Apply cleanup**.
@@ -221,17 +219,17 @@ Copy any standalone cleaned text you want to keep into your document, and save
 full-paper categorizations as JSON before stopping or restarting a tool. Saving
 the notebook itself is not a substitute for saving categorization JSON.
 
-| What you need                                  | What to do                                                                                                                          |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Open a running tool again                      | Click **Open notebook**.                                                                                                      |
-| Recover a notebook that has stopped responding | Click **Kill kernels**, reopen the notebook, then choose **Run All Cells**. This clears its working text and variables. |
-| Stop one tool                                  | Click **Stop**.                                                                                                               |
-| Stop a tool that will not shut down            | Click **Force stop**.                                                                                                         |
-| Finish using both tools                        | Close the launcher and confirm that its tools should stop.                                                                          |
+| What you need | What to do |
+| --- | --- |
+| Open the running web app | Click **Open web app**. |
+| Recover a page that has stopped responding | Click **Kill kernels**, then reload the web app. This clears unsaved work on both pages. |
+| Stop the web app | Click **Stop**. |
+| Stop the web app if it will not shut down | Click **Force stop**. |
+| Finish using both tools | Close the launcher and confirm. |
 
-Closing a browser tab leaves the tool running. The launcher shows each running
-tool's port and link; you do not need to choose a port yourself. Saved project
-files remain on disk after you stop the tools.
+Closing the browser tab leaves the local server running. Save your work before
+closing or reloading the tab. The launcher shows the server's port and link.
+Saved project files remain on disk after you stop the web app.
 
 For more detail, see [setup and troubleshooting](dev/SETUP.md),
 [analysis and counting rules](dev/analysis_reference.md), or

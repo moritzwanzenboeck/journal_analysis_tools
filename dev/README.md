@@ -9,9 +9,9 @@ python -m unittest discover -s dev/tests -v
 
 Tests use synthetic metadata and temporary folders, including offline project
 creation, notebook callbacks, real local Jupyter startup, port fallback, kernel
-isolation, shutdown and restart. A hidden GUI test starts both tools, checks their
-ports and fallback links, invokes the kernel buttons, and closes the window. On
-macOS it closes through Command-Q's handler. No external network is needed.
+isolation, shutdown and restart. The hidden GUI tests exercise the default
+Voilà dashboard and the standalone Jupyter controls, including browser links
+and shutdown. On macOS they also exercise Command-Q. The tests run offline.
 
 The compatibility workflow runs this same suite on Windows, Intel macOS
 (`macos-15-intel`) and Apple Silicon macOS (`macos-15`), with Python 3.10 and 3.14.
@@ -171,6 +171,14 @@ the all-paper summary. It does not use the system clipboard. Pass
 `--browser-executable` to use an installed Chrome/Chromium instead of downloading
 a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
 optional browser check; the compatibility workflow runs the unit/service suite.
+
+Use the same browser dependencies to check both Voilà pages and verify that
+switching pages keeps their drafts and kernels, with external requests blocked.
+
+```bash
+python dev/check_voila_dashboard.py
+python dev/check_voila_dashboard.py --without-abort-signal-any
+```
 
 ## Manual DOI projects
 
