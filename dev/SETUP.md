@@ -5,8 +5,9 @@ packages. Windows, Intel Mac and Apple Silicon Mac users need no terminal setup.
 
 ## Open a self-contained release
 
-Download the ZIP for your computer from the latest GitHub release: Windows
-`windows-x86_64`, Intel Mac `macos-x86_64`, or Apple Silicon Mac `macos-arm64`.
+Download the platform ZIP from the **Artifacts** section of a successful Voilà
+test build. Follow the download steps in [Open the app](../README.md#open-the-app).
+GitHub keeps these artifacts for 14 days.
 Extract the **whole folder** onto a local disk. On Windows keep the app beside
 `notebook_launcher.py` and `app/`, including `app/python`. The Mac app includes
 its tools and runtime inside the signed bundle and may be moved as a whole into
@@ -150,7 +151,7 @@ On Windows you can also pass `--classic` to the compiled launcher from a termina
 
 | Problem | What to check |
 | --- | --- |
-| No launcher app in the folder | Download a platform release ZIP, not the automatic Source code ZIP; extract the complete folder. Source users can use the build instructions below. |
+| No launcher app in the folder | Open the platform ZIP inside the GitHub Actions artifact and extract the complete folder. Source users can use the build instructions below. |
 | The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
 | The app cannot find Python or a required package | Extract the complete platform release ZIP again, including `app/python`. For a source checkout, reinstall `requirements.txt` using its `.venv` Python. |
 | The browser does not open | Click **Open web app** in the launcher, or copy its address into the browser. |

@@ -5,11 +5,12 @@ text copied from PDFs, and categorize whole papers by section.
 
 ## Open the app
 
-Download the ZIP for your computer from [Releases](https://github.com/moritzwanzenboeck/journal_analysis_tools/releases/latest),
-then extract the complete folder onto a local disk. Choose a platform ZIP under
-**Assets**; the automatic **Source code** downloads do not contain compiled apps.
-Each platform ZIP includes the app, Python and all required notebook packages.
-No Python installation, setup commands or compilation are needed.
+Sign in to GitHub and open the latest successful [Voilà test build](https://github.com/moritzwanzenboeck/journal_analysis_tools/actions/workflows/voila-test.yml?query=branch%3Avoila-test).
+Under **Artifacts**, download `release-windows-latest` for Windows,
+`release-macos-15-intel` for Intel Mac, or `release-macos-15` for Apple Silicon.
+Open the downloaded artifact and extract the platform ZIP inside it onto a local
+disk. Each platform ZIP includes the compiled app, Python and all required
+notebook packages.
 
 Double-click **Journal Notebook Launcher** in the extracted tools folder:
 
