@@ -1,4 +1,4 @@
-"""Manage only the Jupyter servers started by the notebook launcher."""
+"""Manage only the Voilà and Jupyter servers started by the launcher."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,7 +21,7 @@ import psutil
 class ServiceSpec:
     key: str
     title: str
-    notebook: str
+    notebook: str | None
     preferred_port: int
 
 
@@ -29,6 +29,7 @@ SERVICES = (
     ServiceSpec('project', 'Create journal project', 'create_journal_analysis.ipynb', 8888),
     ServiceSpec('text', 'Clean and count text', 'clean_and_count_text.ipynb', 8889),
 )
+DASHBOARD = ServiceSpec('dashboard', 'Journal Analysis Tools', None, 0)
 
 
 def logs_directory():
@@ -65,13 +66,19 @@ class NotebookService:
     def url(self):
         if not self.base_url:
             return None
-        relative = (self.root / self.spec.notebook).relative_to(self.root.parent).as_posix()
-        return self.base_url + 'notebooks/' + quote(relative, safe='/') + '?' + urlencode({'token': self.token})
+        path = ''
+        if self.spec.notebook:
+            relative = (self.root / self.spec.notebook).relative_to(self.root.parent).as_posix()
+            path = 'notebooks/' + quote(relative, safe='/')
+        return self.base_url + path + '?' + urlencode({'token': self.token})
 
     def request(self, path, method='GET', *, timeout=3):
         if not self.base_url:
             raise RuntimeError('The notebook service is not ready.')
-        request = Request(self.base_url + path, method=method,
+        return self._request(self.base_url + path, method, timeout)
+
+    def _request(self, url, method, timeout):
+        request = Request(url, method=method,
                           headers={'Authorization': f'token {self.token}'},
                           data=b'' if method == 'POST' else None)
         with self._opener.open(request, timeout=timeout) as response:
@@ -86,13 +93,22 @@ class NotebookService:
             except psutil.NoSuchProcess:
                 pass
 
+    def _command(self):
+        if self.spec.notebook is None:
+            return [self.python, '-m', 'app.voila_app', str(self.root)]
+        return [self.python, '-m', 'notebook', '--no-browser',
+                '--ServerApp.ip=127.0.0.1', f'--ServerApp.port={self.spec.preferred_port}',
+                '--ServerApp.port_retries=100', '--ServerApp.base_url=/',
+                f'--ServerApp.root_dir={self.root.parent}', '--ServerApp.allow_remote_access=False']
+
     def start(self, *, timeout=60):
         if self.running:
             return
         self.force_stop()
-        notebook = self.root / self.spec.notebook
-        if not notebook.is_file():
-            raise FileNotFoundError(f'Notebook not found: {notebook}')
+        for spec in SERVICES if self.spec.notebook is None else (self.spec,):
+            notebook = self.root / spec.notebook
+            if not notebook.is_file():
+                raise FileNotFoundError(f'Notebook not found: {notebook}')
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._runtime = tempfile.TemporaryDirectory(prefix='journal-jupyter-')
         runtime = Path(self._runtime.name)
@@ -108,10 +124,7 @@ class NotebookService:
         kernel_python = Path(self.python)
         if kernel_python.name.lower() == 'pythonw.exe':
             kernel_python = kernel_python.with_name('python.exe')
-        command = [self.python, '-m', 'notebook', '--no-browser',
-                   '--ServerApp.ip=127.0.0.1', f'--ServerApp.port={self.spec.preferred_port}',
-                   '--ServerApp.port_retries=100', '--ServerApp.base_url=/',
-                   f'--ServerApp.root_dir={self.root.parent}', '--ServerApp.allow_remote_access=False']
+        info_pattern = 'dashboard-server.json' if self.spec.notebook is None else 'jpserver-*.json'
         options = ({'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW}
                    if os.name == 'nt' else {'start_new_session': True})
         try:
@@ -123,7 +136,7 @@ class NotebookService:
             self._log = self.log_path.open('w', encoding='utf-8')
             if os.name != 'nt':
                 self.log_path.chmod(0o600)
-            self.process = subprocess.Popen(command, cwd=runtime, env=environment,
+            self.process = subprocess.Popen(self._command(), cwd=runtime, env=environment,
                                             stdin=subprocess.DEVNULL, stdout=self._log,
                                             stderr=subprocess.STDOUT, **options)
             deadline = time.monotonic() + timeout
@@ -135,14 +148,15 @@ class NotebookService:
                     # Windows venv executables can spawn a child interpreter, so
                     # Jupyter's PID need not match Popen.pid. This runtime folder
                     # is private to this service and contains no other servers.
-                    info_file = next(runtime.glob('jpserver-*.json'), None)
+                    info_file = next(runtime.glob(info_pattern), None)
                     if info_file:
                         info = json.loads(info_file.read_text(encoding='utf-8'))
-                        self.port = int(info['port'])
-                        self.request('api/kernels', timeout=0.5)
+                        port = int(info['port'])
+                        self._request(f'http://127.0.0.1:{port}/api/kernels', 'GET', 0.5)
+                        self.port = port
                         return
                 except (OSError, ValueError, KeyError):
-                    self.port = None
+                    pass
                 time.sleep(0.1)
             raise TimeoutError(f'Jupyter did not become ready within {timeout:g} seconds. See {self.log_path}')
         except BaseException:

@@ -27,7 +27,8 @@ TARGETS = ('windows-x86_64', 'macos-x86_64', 'macos-arm64')
 SOURCE_FILES = (
     'README.md', 'requirements.txt', 'notebook_launcher.py', 'start_notebook.command',
     'create_journal_analysis.ipynb', 'clean_and_count_text.ipynb',
-    'app/__init__.py', 'app/launcher.py', 'app/notebook_services.py',
+    'app/__init__.py', 'app/launcher.py', 'app/notebook_services.py', 'app/voila_app.py',
+    'app/assets/dashboard.html', 'app/assets/journal_notebook.html.j2',
     'app/journal_tools.py', 'app/text_tools.py', 'app/paper_tools.py', 'app/macos_bootstrap.py', 'app/launch_notebook.sh', 'app/assets/app.icns',
     'dev/SETUP.md', 'dev/analysis_reference.md', 'dev/README.md',
     'dev/build_notebook_launchers.py', 'dev/windows_launcher.cs',
@@ -121,10 +122,10 @@ def build_release(root, version, output, *, runtime_cache=None):
         (package/'RELEASE.json').write_text(json.dumps(metadata, indent=2)+'\n', encoding='utf-8')
         (package/'INSTALL.txt').write_text(
             'JOURNAL ANALYSIS TOOLS '+version+'\n\n'
-            'Python, Jupyter and the compiled launcher are included. No setup commands are needed.\n'
+            'Python, Voilà, Jupyter and the compiled launcher are included. No setup commands are needed.\n'
             '1. Extract the complete folder onto a LOCAL disk. Keep all its files together.\n'
             '2. Double-click '+app_name+'.\n'
-            '3. Start a service, then choose Run All Cells in the notebook.\n\n' +
+            '3. Choose a tool in the local web app that opens in your browser.\n\n' +
             ('On Mac the app contains its Python and tools; editable notebooks are kept in your user account.\n'
              if target.startswith('macos-') else 'Keep app/python with the tools.\n') +
             'No packages or runtime are downloaded or installed on startup.\n'

@@ -172,6 +172,14 @@ the all-paper summary. It does not use the system clipboard. Pass
 a browser, and `--artifacts` to retain the screenshot and result JSON. This is an
 optional browser check; the compatibility workflow runs the unit/service suite.
 
+Use the same browser dependencies to check both Voilà pages and verify that
+switching pages keeps their drafts and kernels, with external requests blocked.
+
+```bash
+python dev/check_voila_dashboard.py
+python dev/check_voila_dashboard.py --without-abort-signal-any
+```
+
 ## Manual DOI projects
 
 `app/journal_tools.py` implements DOI normalization, full-record lookup/cache,

@@ -1,0 +1,8 @@
+{% extends 'voila/templates/lab/index.html.j2' %}
+
+{% block notebook_css %}
+  {# Voilà's local styles already include Font Awesome for the copy icons. #}
+  {% for line in super().splitlines(keepends=true) if 'cdn.jsdelivr.net/npm/@fortawesome/' not in line %}
+    {{- line | safe -}}
+  {% endfor %}
+{% endblock notebook_css %}

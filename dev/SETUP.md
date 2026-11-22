@@ -1,6 +1,6 @@
 # Opening the app and troubleshooting
 
-Platform release downloads include Python, Tk, Jupyter and all notebook
+Platform release downloads include Python, Tk, Voilà, Jupyter and all notebook
 packages. Windows, Intel Mac and Apple Silicon Mac users need no terminal setup.
 
 ## Open a self-contained release
@@ -11,8 +11,8 @@ Extract the **whole folder** onto a local disk. On Windows keep the app beside
 `notebook_launcher.py` and `app/`, including `app/python`. The Mac app includes
 its tools and runtime inside the signed bundle and may be moved as a whole into
 Applications. Open **Journal Notebook Launcher.exe** on Windows or
-**Journal Notebook Launcher.app** on Mac. Start a service and choose
-**Run All Cells** in the notebook.
+**Journal Notebook Launcher.app** on Mac. Choose a tool in the local web app
+that opens in your browser.
 
 Moving the Windows folder or Mac app does not require recreating an environment.
 No packages or runtime are downloaded or installed on startup. Mac notebooks
@@ -139,8 +139,12 @@ Generated journal projects contain a self-contained copy of
 `clean_and_count_text.ipynb`. Existing copies are not replaced automatically.
 After saving active categorizations, copy the updated notebook from the tools
 folder into the project, replacing that notebook only. Keep `project.json`,
-`output/` and `paper_categorizations/` intact. Alternatively use the central
-notebook and choose the existing project in **Project folder**.
+`output/` and `paper_categorizations/` intact. You can also open **Clean and
+categorize papers** in the web app and choose the existing **Project folder**.
+
+In a source checkout, run `python notebook_launcher.py --classic` with the
+project's Python environment to open the standalone Jupyter notebook controls.
+On Windows you can also pass `--classic` to the compiled launcher from a terminal.
 
 ## If something does not work
 
@@ -149,7 +153,7 @@ notebook and choose the existing project in **Project folder**.
 | No launcher app in the folder | Download a platform release ZIP, not the automatic Source code ZIP; extract the complete folder. Source users can use the build instructions below. |
 | The builder says an app already exists | Close the launcher and rebuild with `--replace`, as shown above. |
 | The app cannot find Python or a required package | Extract the complete platform release ZIP again, including `app/python`. For a source checkout, reinstall `requirements.txt` using its `.venv` Python. |
-| The browser does not open | Click **Open notebook** in the launcher, or copy its address into the browser. |
+| The browser does not open | Click **Open web app** in the launcher, or copy its address into the browser. |
 | No project papers appear | Select the generated project folder and click **Scan project folder**. It needs its original `project.json` and the CSV named by `sample_export`. The central launcher cannot infer which project you want. |
 | A saved paper is missing from the JSON list | Scan again after saving externally. Only full-paper categorization JSON is listed, not Crossref or sampling reports. You can also load a file by path or upload. |
 | Saving reports that files exist | Review the paper prefix and enable **Overwrite existing files** only to replace that saved pair. All saves in a project use `paper_categorizations/`. |
@@ -157,7 +161,7 @@ notebook and choose the existing project in **Project folder**.
 | Counts pause while editing a Markdown heading | Finish the title after `# ` or `## `; counts and assignments resume automatically. |
 | A section preview remains open | Click its **Hide text** button, or toggle the section's text button. If using an old notebook session, save JSON and restart the kernel with the updated notebook. |
 | Reading a long report or outline | Project summary tables and the heading-outline card expand to show their contents. Use normal notebook page scrolling. The individual-paper category grid retains its cell scrollbars. |
-| DOI lookup stays on “Looking up…” after updating the tools | Reload the updated notebook page and run all cells. Startup refreshes an outdated imported backend; keep the notebook and `app/` files together. Lookup errors release both search buttons so you can retry. |
+| DOI lookup stays on “Looking up…” after updating the tools | Save completed work, then reload the web app. Startup refreshes an outdated imported backend. Lookup errors release both search buttons so you can retry. |
 | A DOI lookup fails | Use a bare DOI or doi.org URL. The DOI must be a journal article registered with Crossref and have title, journal and publication-date metadata. Publisher webpages are not DOI URLs. |
 | The manual Create button is disabled | Add at least one checked paper. Correct and recheck any nonempty bulk list, or clear that input to proceed with the existing selection. |
 | Manual DOI selection disappears | Restarting or rerunning the notebook clears the in-memory selection/cache. Keep the kernel running until creation; completed projects retain their archived metadata. |

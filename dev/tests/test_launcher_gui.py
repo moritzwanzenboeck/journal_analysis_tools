@@ -7,11 +7,64 @@ import unittest
 from unittest.mock import patch
 
 from app import launcher
-from app.notebook_services import NotebookService
+from app.notebook_services import DASHBOARD, NotebookService
+
+
+def widgets(parent):
+    for child in parent.winfo_children():
+        yield child
+        yield from widgets(child)
 
 
 @unittest.skipUnless(sys.platform in ('win32', 'darwin') or os.environ.get('DISPLAY'), 'A desktop session is required')
 class LauncherWindowTests(unittest.TestCase):
+    def test_default_launcher_opens_the_dashboard_and_stops_on_close(self):
+        import tkinter as tk
+        from tkinter import messagebox, ttk
+        window = tk.Tk()
+        window.withdraw()
+        failures, managed = [], []
+        with tempfile.TemporaryDirectory(prefix='voila launcher ') as logs:
+            def service(spec, root):
+                instance = NotebookService(spec, root, log_dir=logs)
+                managed.append(instance)
+                return instance
+
+            def fail(error):
+                failures.append(error)
+                window.destroy()
+
+            def check_window():
+                try:
+                    ready = any(isinstance(button, ttk.Button) and button.cget('text') == 'Open web app'
+                                and not button.instate(['disabled']) for button in widgets(window))
+                    if not browser.called or not ready:
+                        window.after(100, check_window)
+                        return
+                    self.assertEqual(browser.call_args.args, (managed[0].url,))
+                    self.assertEqual(managed[0].request('api/kernels'), [])
+                    window.tk.call(window.protocol('WM_DELETE_WINDOW'))
+                except Exception as error:
+                    fail(error)
+
+            with patch.object(tk, 'Tk', return_value=window), \
+                    patch.object(launcher, 'NotebookService', side_effect=service), \
+                    patch.object(launcher.webbrowser, 'open', return_value=True) as browser, \
+                    patch.object(messagebox, 'askyesno', return_value=True), \
+                    patch.object(messagebox, 'showerror', side_effect=lambda *args, **kwargs: fail(AssertionError(str(args)))), \
+                    patch.object(sys, 'argv', ['notebook_launcher.py']):
+                window.after(300, check_window)
+                window.after(45000, lambda: fail(TimeoutError('The launcher did not open the web app.')))
+                try:
+                    launcher.main()
+                finally:
+                    for instance in managed:
+                        instance.force_stop()
+            if failures:
+                raise failures[0]
+            self.assertEqual([instance.spec for instance in managed], [DASHBOARD])
+            self.assertIsNone(managed[0].process)
+
     def test_start_links_kernel_buttons_and_close_cleanup(self):
         import tkinter as tk
         from tkinter import messagebox, ttk
@@ -24,11 +77,6 @@ class LauncherWindowTests(unittest.TestCase):
         def fail(error):
             failures.append(error)
             window.destroy()
-
-        def widgets(parent):
-            for child in parent.winfo_children():
-                yield child
-                yield from widgets(child)
 
         def text(widget):
             variable = widget.cget('textvariable')
@@ -46,7 +94,7 @@ class LauncherWindowTests(unittest.TestCase):
                     patch.object(launcher.webbrowser, 'open', return_value=False) as browser, \
                     patch.object(messagebox, 'askyesno', return_value=True), \
                     patch.object(messagebox, 'showerror', side_effect=lambda *args, **kwargs: fail(AssertionError(str(args)))), \
-                    patch.object(sys, 'argv', ['notebook_launcher.py']):
+                    patch.object(sys, 'argv', ['notebook_launcher.py', '--classic']):
                 def tick():
                     nonlocal stage
                     try:
