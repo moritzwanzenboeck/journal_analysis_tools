@@ -25,13 +25,14 @@ a current self-contained release instead.
 
 ## Folder and file selection
 
-Use **Browse…** beside path fields to choose existing folders or JSON files
-inside the web app. Windows drive selection, Home and Parent folder navigation
-are available. You may also paste a path into **Browse folder** and click **Go**.
-The browser uses the app computer's filesystem and permissions. If a folder
-cannot be opened, check that a shared drive is mounted and accessible to your
-account, or choose a local folder. Cancel leaves the original path unchanged.
-Selecting a path does not perform the associated scan, load, save or creation.
+**Browse…** opens the operating system's folder or file chooser on the computer
+running the app. Native dialogs require a desktop session and Python's Tk support,
+which platform downloads include. If the dialog is behind the browser, switch to
+its Python/app window. If it cannot open, use the editable path field; in a
+remote notebook the JSON upload button accepts a file from the browser computer.
+Check that shared drives are mounted and accessible before selecting them.
+Cancel leaves the original path unchanged. Selection does not perform the
+associated scan, load, save or creation.
 
 ## Mac downloads and editable notebooks
 

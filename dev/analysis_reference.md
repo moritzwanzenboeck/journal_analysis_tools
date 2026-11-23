@@ -341,22 +341,26 @@ The copied-text fallback uses the same sizing mechanism.
 
 ## Folder and JSON selection
 
-Both notebooks embed `path_selector` from `app/file_selectors.py`, using only
-standard Python and native ipywidgets. This keeps generated project notebooks
-self-contained and works in Jupyter and Voilà without Tk dialogs or a custom
-browser module. Browsing reads directory entries; it does not upload files,
-create folders, load papers or alter assignments. Confirming fills the existing
-text field, whose normal action button still validates and applies the path.
+Both notebooks embed the OS-dialog helpers from `app/file_selectors.py`, so
+copied project notebooks remain self-contained. `Browse…` launches a short-lived
+Python subprocess using the current interpreter. That child creates Tk and runs
+`filedialog.askdirectory` or `askopenfilename` on its main thread, giving macOS
+and Windows their system dialogs. Tk is never initialized in the kernel.
 
-Folder mode lists directories; JSON mode lists directories and files with a
-case-insensitive `.json` extension. Paths expand `~`, support Unicode/spaces and
-are resolved before selection. Missing starting paths open the nearest existing
-ancestor without creating anything; typed destinations may still name a new
-folder. Inaccessible directories display an error and keep the previous usable
-listing. Selection rechecks existence. Cancel clears the browser's listing and
-leaves the field unchanged. Disabling a field closes and disables its browser;
-project saves remain constrained to `paper_categorizations/`.
+An asynchronous callback waits for the child's result via a worker thread,
+keeping the kernel responsive without relying on Windows async subprocess
+support. The child receives a JSON request on standard input and returns JSON;
+paths never enter shell commands. Windows suppresses a console window. Cancelling
+the task terminates only its own dialog subprocess. Native dialog cancellation
+leaves the path unchanged; errors restore the button and allow manual path entry.
 
-The browser runs with the notebook kernel's filesystem permissions. In a
-remotely hosted notebook it browses the server computer; the existing JSON
-upload control accepts a file from the browser computer instead.
+Dialog requests start at the entered path or its nearest existing ancestor.
+JSON mode filters for JSON files; the selected result is revalidated, with a
+case-insensitive `.json` extension. Selection only fills the existing field,
+whose scan/load/create action remains explicit. A disabled field cannot open a
+dialog; a selection returning after the field changes or becomes disabled is
+ignored. Project saves remain constrained to `paper_categorizations/`.
+
+Native dialogs need a graphical desktop on the kernel computer. When the notebook
+runs remotely, enter a server path or use the existing JSON upload control for a
+file on the browser computer.

@@ -97,23 +97,20 @@ project folder to load these papers in **Categorize full paper**.
 
 ## Choose folders and files
 
-**Browse…** opens a folder/file browser inside the app on Windows and macOS.
-Choose a listed folder and click **Open selected folder** to enter it, or use
-**Parent folder**, **Home**, or a typed **Browse folder** path and **Go**.
-Windows also offers a drive selector. Confirm with **Use this folder** or
-**Use selected JSON** (or **Use selected folder** for a highlighted directory);
-**Cancel** leaves the original path unchanged.
+**Browse…** opens your operating system's folder or file chooser: the standard
+macOS dialog or Windows dialog. Choose a folder or JSON file and confirm;
+**Cancel** leaves the path unchanged. The notebook stays responsive while the
+dialog is open. Selecting a path fills the field without loading, saving or
+creating anything; use the existing action button afterward.
 
-The browser lists folders and, for file fields, JSON files. It fills the path
-field without loading, saving or creating anything. Use the existing action
-button afterward. You can still type paths, including a new destination folder.
-Within a project, **Save folder** and its Browse button stay locked to
-`paper_categorizations/`.
-
+You can still type paths, including a new destination folder. Within a project,
+**Save folder** and its Browse button stay locked to `paper_categorizations/`.
 For offline replay, use **Browse…** beside **Archived JSON** in the advanced
-project options to select an existing `*_crossref.json` export. Paths refer to
-the computer running the app; the upload button can load a JSON from your browser's
-computer when using a notebook hosted elsewhere.
+project options to select an existing `*_crossref.json` export.
+
+Native dialogs open on the computer running the app and require a desktop
+session there. In a remotely hosted notebook, enter a server path or use the
+JSON upload button to load a file from your browser's computer.
 
 ## Clean and count text
 

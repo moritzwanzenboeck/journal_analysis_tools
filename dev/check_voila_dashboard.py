@@ -6,7 +6,7 @@ import sys
 import tempfile
 
 from playwright.sync_api import expect, sync_playwright
-from path_selector_checks import check_creation_selectors, check_paper_selectors, selector
+from path_selector_checks import check_creation_selectors, check_paper_selectors, selector, stub_native_dialogs
 
 
 def assert_no_horizontal_scroll(page, frame):
@@ -25,10 +25,9 @@ def assert_no_horizontal_scroll(page, frame):
     assert not result, result[:8]
 
 
-def check_pages(service, browser_executable, without_abort_signal_any):
+def check_pages(service, browser_executable, without_abort_signal_any, project):
     expect.set_options(timeout=15000)
-    with tempfile.TemporaryDirectory(prefix='voila-layout-') as temporary, sync_playwright() as playwright:
-        project = Path(temporary)
+    with sync_playwright() as playwright:
         paper_title = 'LongPaperTitle' * 12
         heading = 'LongMethodHeading' * 12
         config = {'schema_version': 1, 'journal': 'Layout Test Journal', 'sample_export': 'sample.csv'}
@@ -129,10 +128,16 @@ def main():
     from app.notebook_services import DASHBOARD, NotebookService
 
     with tempfile.TemporaryDirectory(prefix='voila-browser-') as logs:
-        service = NotebookService(DASHBOARD, root, log_dir=logs)
+        scratch = Path(logs)/'tools'; scratch.mkdir()
+        project = Path(logs)/'project'; project.mkdir()
+        for path in root.glob('*.ipynb'):
+            notebook = json.loads(path.read_text())
+            stub_native_dialogs(notebook, project)
+            (scratch/path.name).write_text(json.dumps(notebook))
+        service = NotebookService(DASHBOARD, scratch, log_dir=logs)
         try:
             service.start()
-            check_pages(service, args.browser_executable, args.without_abort_signal_any)
+            check_pages(service, args.browser_executable, args.without_abort_signal_any, project)
         finally:
             service.stop()
     print('Both pages fit narrow windows and kept their unsaved edits across navigation.')

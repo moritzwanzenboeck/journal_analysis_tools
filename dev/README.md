@@ -305,17 +305,19 @@ report text grow at the actual browser width without custom JavaScript.
 The browser check verifies long outlines, long saved title lists and project
 reports at 1440, 900 and 520 pixels, checking scroll and content dimensions.
 
-## Folder and file browsers
+## Operating-system folder and file dialogs
 
-`app/file_selectors.py` supplies `path_selector`, embedded verbatim in both
-notebooks so copied project notebooks remain independent of the tools checkout.
-Keep the helper in sync; `dev/tests/test_file_selectors.py` checks AST parity,
-folder navigation, JSON filtering, permission failures, cancellation, stale
-selections and the project save-folder constraint. Include the module in the
-release whitelist. No extra runtime dependencies or filesystem API routes are
-needed: widgets communicate with the existing authenticated kernel.
+`app/file_selectors.py` supplies the dialog worker script, `native_path_dialog`
+and `path_selector`, embedded in both notebooks. Keep them in sync so generated
+project notebooks work without importing the tools package. Tk runs on the main
+thread of a dedicated subprocess, while an async widget callback waits without
+blocking the kernel. Keep the subprocess wait compatible with Windows selector
+event loops; suppress the child console and send paths through JSON on stdin.
 
-The Jupyter layout and Voilà dashboard browser checks also exercise selectors,
-including Unicode paths, JSON selection, cancellation and narrow-window layout.
-Selection must only populate a path, leaving scan/load/create explicit so
-browsing cannot replace unsaved paper edits.
+`dev/tests/test_file_selectors.py` covers native API wiring, isolated execution,
+cancellation/cleanup, retry, responsive callbacks, stale results, Unicode paths,
+explicit actions and the locked project save location. The Jupyter/Voilà browser
+checks stub OS-dialog results only in temporary notebook copies, verifying button
+wiring, path updates, cancellation and narrow layout without opening interactive
+desktop panels during automation. Those stubs are never shipped in the app.
+Native panel behavior must also be checked on each target desktop.

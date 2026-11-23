@@ -80,8 +80,10 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   Keep the browser check that removes `AbortSignal.any` to catch regressions on
   older Safari, alongside the normal native widget and fixed-layout checks.
 
-- Keep the native-widget `path_selector` helper in parity in both notebooks and
-  `app/file_selectors.py`. Browsing must only fill a path; keep scan/load/create
-  explicit and preserve disabled project save destinations. Generated project
-  notebooks must browse without importing the tools package. Retain folder/JSON,
-  Unicode, cancellation, permission-error and browser-layout coverage.
+- Keep the OS-dialog worker, `native_path_dialog` and `path_selector` in parity
+  in both notebooks and `app/file_selectors.py`. Run Tk on a separate process's
+  main thread and wait asynchronously; retain Windows selector-loop support and
+  suppress child consoles. Dialogs must only fill paths; keep scan/load/create
+  explicit, ignore stale results and preserve disabled project save destinations.
+  Generated project notebooks must work without importing the tools package.
+  Retain cancellation/cleanup, Unicode and browser-wiring/layout coverage.

@@ -13,7 +13,7 @@ from app.notebook_services import NotebookService, SERVICES
 
 
 def main():
-    from path_selector_checks import check_paper_selectors
+    from path_selector_checks import check_paper_selectors, stub_native_dialogs
     from playwright.sync_api import sync_playwright, expect
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -31,13 +31,14 @@ def main():
         # Exercise copy fallback without changing the user's real clipboard.
         code=next(c for c in reversed(notebook['cells']) if c['cell_type']=='code')
         code['source']=''.join(code['source']) + "\n_browser_which = shutil.which\nshutil.which = lambda name, *a, **kw: None if name in {'pbcopy','clip.exe'} else _browser_which(name,*a,**kw)\n"
-        (root/'clean_and_count_text.ipynb').write_text(json.dumps(notebook),encoding='utf-8')
         project=stage/'browser-project'
         (project/'output').mkdir(parents=True,exist_ok=True)
         (project/'project.json').write_text(json.dumps({'schema_version':1,'journal':'Browser Test Journal','sample_export':'output/random10.csv'}))
         with (project/'output/random10.csv').open('w',newline='',encoding='utf-8-sig') as h:
             w=csv.DictWriter(h,fieldnames=['doi','title','bibtex_key']);w.writeheader()
             w.writerows([{'doi':f'10.1234/test{i}','title':f'Browser paper {i}','bibtex_key':f'test{i}'} for i in range(1,11)])
+        stub_native_dialogs(notebook, project)
+        (root/'clean_and_count_text.ipynb').write_text(json.dumps(notebook),encoding='utf-8')
         service=NotebookService(next(s for s in SERVICES if s.key=='text'),root,log_dir=stage/'browser-logs')
         try:
             service.start()
