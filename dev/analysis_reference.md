@@ -345,7 +345,9 @@ Both notebooks embed the OS-dialog helpers from `app/file_selectors.py`, so
 copied project notebooks remain self-contained. `Browse…` launches a short-lived
 Python subprocess using the current interpreter. That child creates Tk and runs
 `filedialog.askdirectory` or `askopenfilename` on its main thread, giving macOS
-and Windows their system dialogs. Tk is never initialized in the kernel.
+and Windows their system dialogs. On macOS the parent is omitted, giving a
+independent panel instead of a sheet attached to a hidden window.
+Windows retains the Tk parent. Tk is never initialized in the kernel.
 
 An asynchronous callback waits for the child's result via a worker thread,
 keeping the kernel responsive without relying on Windows async subprocess

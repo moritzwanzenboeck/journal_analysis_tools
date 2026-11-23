@@ -87,3 +87,5 @@ and text editing in the notebooks rather than rebuilding a full desktop client.
   explicit, ignore stale results and preserve disabled project save destinations.
   Generated project notebooks must work without importing the tools package.
   Retain cancellation/cleanup, Unicode and browser-wiring/layout coverage.
+  Mac pickers must omit the withdrawn Tk parent; verify real panel visibility
+  and independent presentation with `dev/check_native_dialogs.py`.

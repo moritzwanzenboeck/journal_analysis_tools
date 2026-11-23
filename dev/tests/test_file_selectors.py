@@ -156,7 +156,8 @@ class FileSelectorTests(unittest.TestCase):
 
 class NativeProcessTests(unittest.TestCase):
     def test_worker_uses_tk_native_dialogs_and_returns_json(self):
-        for mode in ('folder', 'json'):
+        from itertools import product
+        for platform, mode in product(('darwin', 'win32'), ('folder', 'json')):
             root = MagicMock()
             tk = types.ModuleType('tkinter'); tk.Tk = MagicMock(return_value=root)
             dialogs = types.ModuleType('tkinter.filedialog')
@@ -165,12 +166,16 @@ class NativeProcessTests(unittest.TestCase):
             tk.filedialog = dialogs
             stream = io.StringIO()
             request = dict(mode=mode, title='Native chooser', initialdir='/initial', initialfile='prior.json')
-            with patch.dict(sys.modules, {'tkinter': tk, 'tkinter.filedialog': dialogs}), \
+            with patch.object(sys, 'platform', platform), \
+                    patch.dict(sys.modules, {'tkinter': tk, 'tkinter.filedialog': dialogs}), \
                     patch.object(sys, 'stdin', io.StringIO(json.dumps(request))), \
                     patch.object(sys, 'stdout', stream):
                 exec(selectors._NATIVE_PATH_DIALOG, {})
             dialog = dialogs.askdirectory if mode == 'folder' else dialogs.askopenfilename
-            self.assertEqual(dialog.call_args.kwargs['parent'], root)
+            if platform == 'darwin':
+                self.assertNotIn('parent', dialog.call_args.kwargs)
+            else:
+                self.assertEqual(dialog.call_args.kwargs['parent'], root)
             self.assertEqual(dialog.call_args.kwargs['initialdir'], '/initial')
             if mode == 'folder':
                 self.assertTrue(dialog.call_args.kwargs['mustexist'])

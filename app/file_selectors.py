@@ -14,7 +14,11 @@ try:
     root.withdraw()
     root.attributes("-topmost", True)
     root.update_idletasks()
-    options = dict(parent=root, title=request["title"], initialdir=request["initialdir"])
+    options = dict(title=request["title"], initialdir=request["initialdir"])
+    # On macOS, parenting to a withdrawn Tk window creates an immovable sheet
+    # positioned at that invisible window. Omit the parent for a normal OS panel.
+    if sys.platform != "darwin":
+        options["parent"] = root
     if request["mode"] == "folder":
         selected = filedialog.askdirectory(mustexist=True, **options)
     elif request["mode"] == "json":

@@ -321,3 +321,16 @@ checks stub OS-dialog results only in temporary notebook copies, verifying butto
 wiring, path updates, cancellation and narrow layout without opening interactive
 desktop panels during automation. Those stubs are never shipped in the app.
 Native panel behavior must also be checked on each target desktop.
+
+On a macOS desktop, verify the actual native chooser geometry as well:
+
+```bash
+python dev/check_native_dialogs.py
+```
+
+Use `--python /path/to/app/Contents/Resources/JournalTools/app/python/bin/python3`
+to exercise a bundled runtime. The check opens each test panel, reads only its
+own Cocoa window geometry and sheet attachment, verifies it is fully inside a visible
+screen, then cancels it. It does not inspect or manipulate other applications.
+Mac choosers must omit the hidden Tk parent, which would attach them as fixed
+sheets at that invisible window's position. Windows retains its parent setting.

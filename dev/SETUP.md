@@ -27,7 +27,8 @@ a current self-contained release instead.
 
 **Browse…** opens the operating system's folder or file chooser on the computer
 running the app. Native dialogs require a desktop session and Python's Tk support,
-which platform downloads include. If the dialog is behind the browser, switch to
+which platform downloads include. On macOS it opens as an independent
+window. If the dialog is behind the browser, switch to
 its Python/app window. If it cannot open, use the editable path field; in a
 remote notebook the JSON upload button accepts a file from the browser computer.
 Check that shared drives are mounted and accessible before selecting them.
