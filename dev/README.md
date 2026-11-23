@@ -304,3 +304,18 @@ CSS grid. Both use identical fonts, wrapping and padding, so outlines and copied
 report text grow at the actual browser width without custom JavaScript.
 The browser check verifies long outlines, long saved title lists and project
 reports at 1440, 900 and 520 pixels, checking scroll and content dimensions.
+
+## Folder and file browsers
+
+`app/file_selectors.py` supplies `path_selector`, embedded verbatim in both
+notebooks so copied project notebooks remain independent of the tools checkout.
+Keep the helper in sync; `dev/tests/test_file_selectors.py` checks AST parity,
+folder navigation, JSON filtering, permission failures, cancellation, stale
+selections and the project save-folder constraint. Include the module in the
+release whitelist. No extra runtime dependencies or filesystem API routes are
+needed: widgets communicate with the existing authenticated kernel.
+
+The Jupyter layout and Voilà dashboard browser checks also exercise selectors,
+including Unicode paths, JSON selection, cancellation and narrow-window layout.
+Selection must only populate a path, leaving scan/load/create explicit so
+browsing cannot replace unsaved paper edits.

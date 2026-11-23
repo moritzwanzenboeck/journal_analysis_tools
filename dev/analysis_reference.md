@@ -338,3 +338,25 @@ retains its existing fixed layout. The outline textarea grows with its text
 using a hidden text mirror that measures wrapping at the actual browser width,
 so long outlines remain editable without internal scrolling or custom JavaScript.
 The copied-text fallback uses the same sizing mechanism.
+
+## Folder and JSON selection
+
+Both notebooks embed `path_selector` from `app/file_selectors.py`, using only
+standard Python and native ipywidgets. This keeps generated project notebooks
+self-contained and works in Jupyter and Voilà without Tk dialogs or a custom
+browser module. Browsing reads directory entries; it does not upload files,
+create folders, load papers or alter assignments. Confirming fills the existing
+text field, whose normal action button still validates and applies the path.
+
+Folder mode lists directories; JSON mode lists directories and files with a
+case-insensitive `.json` extension. Paths expand `~`, support Unicode/spaces and
+are resolved before selection. Missing starting paths open the nearest existing
+ancestor without creating anything; typed destinations may still name a new
+folder. Inaccessible directories display an error and keep the previous usable
+listing. Selection rechecks existence. Cancel clears the browser's listing and
+leaves the field unchanged. Disabling a field closes and disables its browser;
+project saves remain constrained to `paper_categorizations/`.
+
+The browser runs with the notebook kernel's filesystem permissions. In a
+remotely hosted notebook it browses the server computer; the existing JSON
+upload control accepts a file from the browser computer instead.

@@ -196,7 +196,8 @@ class ProjectCategoryTests(unittest.TestCase):
             self.assertIn('Article overview',s['project_summary_fallback'].value)
             s['paper_custom_categories'].value='';s['paper_apply_categories_button'].click()
             self.assertEqual(s['paper_state']['document']['units'][1]['category'],'Unassigned')
-            self.assertIn(s['paper_project_folder'],s['paper_project_controls'].children)
+            self.assertIn(s['paper_project_selector']['box'],s['paper_project_controls'].children)
+            self.assertIn(s['paper_project_folder'],s['paper_project_selector']['box'].children[1].children)
             self.assertLess(s['paper_workflow'].children.index(s['paper_sample_choice']),s['paper_workflow'].children.index(s['paper_original']))
 
 

@@ -57,7 +57,7 @@ later launches can use the normal double-click. See
 2. Choose **Random journal sample**, enter the journal title or ISSN, click
    **Find journal**, and select the journal.
 3. Choose the start and end dates, the number of papers, and where to save the
-   project. Both dates are included.
+   project using **Browse…** beside **Projects parent**. Both dates are included.
 4. Click **Create project**.
 5. Open the new project folder. Its `output` folder contains the full paper list
    and random sample as CSV tables for Excel and BibTeX bibliography files.
@@ -79,7 +79,7 @@ an internet connection.
 3. Review **Selected papers** and remove any unwanted entries. The overview shows
    journal names, number of papers and year range. A warning appears when papers
    come from multiple journals; you can still create that project.
-4. Choose the projects parent and optional project folder name, then click
+4. Choose the projects parent using **Browse…**, enter an optional project folder name, then click
    **Create project**.
 
 Lookup preloads the available metadata for exports, including authors and
@@ -94,6 +94,26 @@ non-scientific items are rejected during DOI checks. Random selection excludes
 the same material and records the exclusions in its selection report. Their selected-paper exports use
 `_selected<N>` names in `output/`. In **Clean and categorize papers**, select the
 project folder to load these papers in **Categorize full paper**.
+
+## Choose folders and files
+
+**Browse…** opens a folder/file browser inside the app on Windows and macOS.
+Choose a listed folder and click **Open selected folder** to enter it, or use
+**Parent folder**, **Home**, or a typed **Browse folder** path and **Go**.
+Windows also offers a drive selector. Confirm with **Use this folder** or
+**Use selected JSON** (or **Use selected folder** for a highlighted directory);
+**Cancel** leaves the original path unchanged.
+
+The browser lists folders and, for file fields, JSON files. It fills the path
+field without loading, saving or creating anything. Use the existing action
+button afterward. You can still type paths, including a new destination folder.
+Within a project, **Save folder** and its Browse button stay locked to
+`paper_categorizations/`.
+
+For offline replay, use **Browse…** beside **Archived JSON** in the advanced
+project options to select an existing `*_crossref.json` export. Paths refer to
+the computer running the app; the upload button can load a JSON from your browser's
+computer when using a notebook hosted elsewhere.
 
 ## Clean and count text
 
@@ -114,8 +134,8 @@ automatic cleanup can misinterpret headings, line breaks and hyphens.
 The same notebook has a separate **Categorize full paper** tab. The original
 clean-and-count workflow remains in **Clean & count (original)**.
 
-1. Above the workflow tabs, check **Project folder** and click **Scan project
-   folder**. A notebook opened inside a generated journal project detects that
+1. Above the workflow tabs, use **Browse…** beside **Project folder**, select the
+   project directory, then click **Scan project folder**. A notebook opened inside a generated journal project detects that
    project automatically. When using the central launcher, select your project
    folder here.
 2. Select one of the project’s papers and click **Start / reopen paper**.
@@ -208,8 +228,9 @@ heading boundaries against the PDF before using the counts. Heading words are
 included by default; paragraph counts cover body text. See the
 [counting reference](dev/analysis_reference.md) for details.
 
-Outside a project you can choose a save folder and load JSON using its file
-picker or path. Save before switching papers. If you intentionally want to
+Outside a project, use **Browse…** beside **Save folder** to choose where to save.
+Use **Browse…** beside **JSON path** to select an existing categorization, then
+click **Load JSON from path**. The **Load saved JSON** upload button also remains available. Save before switching papers. If you intentionally want to
 replace unsaved work, enable **Allow replacing the current unsaved paper**.
 Existing files require **Overwrite existing files** before replacement.
 

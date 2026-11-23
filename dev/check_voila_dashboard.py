@@ -6,6 +6,7 @@ import sys
 import tempfile
 
 from playwright.sync_api import expect, sync_playwright
+from path_selector_checks import check_creation_selectors, check_paper_selectors, selector
 
 
 def assert_no_horizontal_scroll(page, frame):
@@ -59,6 +60,7 @@ def check_pages(service, browser_executable, without_abort_signal_any):
         for width in (1050, 900, 520, 320):
             page.set_viewport_size({'width': width, 'height': 850})
             assert_no_horizontal_scroll(page, projects)
+        check_creation_selectors(page, projects, project)
         projects.get_by_role('button', name='Manual DOI selection', exact=True).click()
         doi = projects.get_by_role('textbox', name='Paper DOI:', exact=True)
         doi.fill('10.1234/browser.draft')
@@ -73,8 +75,9 @@ def check_pages(service, browser_executable, without_abort_signal_any):
         expect(papers.get_by_role('textbox', name='Original text:', exact=True)).to_be_visible()
         assert_no_horizontal_scroll(page, papers)
         papers.get_by_role('tab', name='Categorize full paper', exact=True).click()
-        papers.get_by_role('textbox', name='Project folder:', exact=True).fill(str(project))
+        check_paper_selectors(page, papers, project)
         papers.get_by_role('button', name='Scan project folder', exact=True).click()
+        expect(selector(papers, 'Save folder:').get_by_role('button', name='Browse…', exact=True)).to_be_disabled()
         selection = papers.get_by_role('combobox', name='Sampled paper:', exact=True)
         selection.select_option(label=f'1. {paper_title}')
         papers.get_by_role('button', name='Start / reopen paper', exact=True).click()

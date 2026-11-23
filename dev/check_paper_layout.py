@@ -13,6 +13,7 @@ from app.notebook_services import NotebookService, SERVICES
 
 
 def main():
+    from path_selector_checks import check_paper_selectors
     from playwright.sync_api import sync_playwright, expect
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -65,7 +66,8 @@ def main():
                     (stage/'browser-failure.txt').write_text(page.locator('.jp-OutputArea-output').all_text_contents().__repr__())
                     raise
                 page.get_by_role('textbox',name='Cleaned paper:',exact=True).wait_for(state='visible',timeout=15000)
-                page.get_by_role('textbox',name='Project folder:',exact=True).fill(str(project))
+                check_paper_selectors(page, page, project)
+                page.set_viewport_size({'width':1440,'height':1000})
                 page.get_by_role('button',name='Scan project folder',exact=True).click()
                 page.get_by_role('combobox',name='Sampled paper:',exact=True).select_option(label='1. Browser paper 1')
                 page.get_by_role('button',name='Start / reopen paper',exact=True).click()

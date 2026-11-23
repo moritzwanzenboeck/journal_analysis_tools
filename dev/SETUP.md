@@ -23,6 +23,16 @@ GitHub's automatic **Source code** ZIPs lack the compiled app and bundled Python
 For releases before v1.3.0, use their included setup instructions or download
 a current self-contained release instead.
 
+## Folder and file selection
+
+Use **Browse…** beside path fields to choose existing folders or JSON files
+inside the web app. Windows drive selection, Home and Parent folder navigation
+are available. You may also paste a path into **Browse folder** and click **Go**.
+The browser uses the app computer's filesystem and permissions. If a folder
+cannot be opened, check that a shared drive is mounted and accessible to your
+account, or choose a local folder. Cancel leaves the original path unchanged.
+Selecting a path does not perform the associated scan, load, save or creation.
+
 ## Mac downloads and editable notebooks
 
 The Mac release keeps its interpreter, extension modules and tools inside the
